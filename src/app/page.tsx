@@ -1,12 +1,39 @@
+import { PageWrapper } from "@/components/ui/page-wrapper";
+import { Container } from "@/components/ui/container";
+import { Section } from "@/components/ui/section";
+import { Heading } from "@/components/ui/heading";
+import { Button } from "@/components/ui/button";
+import { AnimationWrapper } from "@/components/ui/animation-wrapper";
+
 export default function Home() {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center bg-black text-white p-6">
-      <div className="text-center space-y-4">
-        <h1 className="text-4xl font-light tracking-widest uppercase">AURELIA</h1>
-        <p className="text-sm font-light text-zinc-400 tracking-wider">LUXURY FINE DINING ECOSYSTEM</p>
-        <div className="h-[1px] w-12 bg-zinc-700 mx-auto"></div>
-        <p className="text-xs text-zinc-500">Foundation Setup Completed</p>
-      </div>
-    </main>
+    <PageWrapper>
+      <Section padding="lg" className="flex-1 flex items-center">
+        <Container>
+          <div className="max-w-2xl mx-auto text-center space-y-8">
+            <AnimationWrapper delay={0.2}>
+              <Heading subtitle>AURELIA Fine Dining</Heading>
+            </AnimationWrapper>
+            
+            <AnimationWrapper delay={0.4}>
+              <Heading as="h1" accent className="mt-2">
+                A New Era of Culinary Artistry
+              </Heading>
+            </AnimationWrapper>
+            
+            <AnimationWrapper delay={0.6}>
+              <p className="text-sm sm:text-base font-light text-zinc-400 max-w-lg mx-auto leading-relaxed font-sans">
+                Experience meticulous gastronomy orchestrated for the world's most discerning palates.
+              </p>
+            </AnimationWrapper>
+
+            <AnimationWrapper delay={0.8} className="pt-4 flex justify-center gap-4">
+              <Button variant="primary">Reserve Table</Button>
+              <Button variant="outline">Explore Menu</Button>
+            </AnimationWrapper>
+          </div>
+        </Container>
+      </Section>
+    </PageWrapper>
   );
 }
