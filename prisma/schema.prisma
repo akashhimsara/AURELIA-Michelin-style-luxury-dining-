@@ -106,7 +106,7 @@ model Reservation {
 
   // Relations
   restaurant          Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  room                Room?       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room                Room?       @relation(fields: [roomId], references: [id], onDelete: SetNull)
   user                User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Indexes
