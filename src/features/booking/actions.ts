@@ -14,13 +14,29 @@ export async function createReservation(data: ReservationFormInput) {
   }
 
   const { name, email, phone, date, time, guests, roomId, restaurantId } = validated.data;
+  const sanitizedEmail = email.toLowerCase().trim();
 
   try {
+    // 2. Resolve or create CRM Guest User profile
+    let user = await db.user.findUnique({
+      where: { email: sanitizedEmail },
+    });
+
+    if (!user) {
+      user = await db.user.create({
+        data: {
+          email: sanitizedEmail,
+          name,
+          phone: phone || null,
+        },
+      });
+    }
+
     let bookedRoomName: string | null = null;
     let roomRateAtBooking: number | null = null;
     let finalAmount: number | null = null;
 
-    // 2. If Room booking, fetch the details to freeze historical rates
+    // 3. If Room booking, fetch the details to freeze historical rates
     if (roomId) {
       const room = await db.room.findUnique({
         where: { id: roomId },
@@ -36,7 +52,7 @@ export async function createReservation(data: ReservationFormInput) {
       finalAmount = roomRateAtBooking; // Billing rate per night
     }
 
-    // 3. Resolve default restaurant branch for dining bookings
+    // 4. Resolve default restaurant branch for dining bookings
     let resolvedRestaurantId = restaurantId;
     if (!roomId && !resolvedRestaurantId) {
       let restaurant = await db.restaurant.findFirst();
@@ -53,31 +69,32 @@ export async function createReservation(data: ReservationFormInput) {
       resolvedRestaurantId = restaurant.id;
     }
 
-    // 4. Persist in database using Prisma with historical snapshots
+    // 5. Persist in database using Prisma with historical snapshots and CRM links
     const reservation = await db.reservation.create({
       data: {
         name,
-        email,
+        email: sanitizedEmail,
         phone,
         date: new Date(date),
         time: time || null,
         guests,
         restaurantId: resolvedRestaurantId || null,
         roomId: roomId || null,
+        userId: user.id, // Linked to guest CRM profile
         roomRateAtBooking: roomRateAtBooking ? roomRateAtBooking : null,
         bookedRoomName: bookedRoomName || null,
         finalAmount: finalAmount ? finalAmount : null,
       },
     });
 
-    // 5. Mock dispatching transactional confirmation email
+    // 6. Mock dispatching transactional confirmation email
     const bookingType = roomId ? "Accommodation" : "Dining";
     const detailLabel = roomId ? `Suite: ${bookedRoomName} (Rate: £${roomRateAtBooking}/night)` : `Seating Time: ${time}`;
 
     console.log(`
 ============================================================
 [MOCK MAIL SERVICE] Sending Transactional Confirmation Email
-To: ${email}
+To: ${sanitizedEmail}
 Subject: AURELIA London - ${bookingType} Confirmed (${reservation.id.slice(0, 8).toUpperCase()})
 ------------------------------------------------------------
 Dear ${name},
