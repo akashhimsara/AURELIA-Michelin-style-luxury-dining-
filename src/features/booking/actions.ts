@@ -13,7 +13,7 @@ export async function createReservation(data: ReservationFormInput) {
     };
   }
 
-  const { name, email, phone, date, time, guests, roomId, restaurantId } = validated.data;
+  const { name, email, phone, date, time, guests, roomId, restaurantId, promoCode } = validated.data;
   const sanitizedEmail = email.toLowerCase().trim();
 
   try {
@@ -36,7 +36,16 @@ export async function createReservation(data: ReservationFormInput) {
     let roomRateAtBooking: number | null = null;
     let finalAmount: number | null = null;
 
-    // 3. If Room booking, fetch the details to freeze historical rates
+    // 3. Resolve active promo discounts
+    let discount = 0;
+    if (promoCode) {
+      const code = promoCode.toUpperCase().trim();
+      if (code === "ROYAL15") discount = 0.15;
+      else if (code === "MICHELIN10") discount = 0.10;
+      else if (code === "SANCTUARY20") discount = 0.20;
+    }
+
+    // 4. If Room booking, fetch the details to freeze historical rates
     if (roomId) {
       const room = await db.room.findUnique({
         where: { id: roomId },
@@ -49,10 +58,12 @@ export async function createReservation(data: ReservationFormInput) {
       }
       bookedRoomName = room.name;
       roomRateAtBooking = Number(room.pricePerNight);
-      finalAmount = roomRateAtBooking; // Billing rate per night
+      
+      // Apply promo discounts to room rate billings
+      finalAmount = roomRateAtBooking * (1 - discount);
     }
 
-    // 4. Resolve default restaurant branch for dining bookings
+    // 5. Resolve default restaurant branch for dining bookings
     let resolvedRestaurantId = restaurantId;
     if (!roomId && !resolvedRestaurantId) {
       let restaurant = await db.restaurant.findFirst();
@@ -69,7 +80,7 @@ export async function createReservation(data: ReservationFormInput) {
       resolvedRestaurantId = restaurant.id;
     }
 
-    // 5. Persist in database using Prisma with historical snapshots and CRM links
+    // 6. Persist in database using Prisma with historical snapshots and CRM links
     const reservation = await db.reservation.create({
       data: {
         name,
@@ -87,9 +98,11 @@ export async function createReservation(data: ReservationFormInput) {
       },
     });
 
-    // 6. Mock dispatching transactional confirmation email
+    // 7. Mock dispatching transactional confirmation email
     const bookingType = roomId ? "Accommodation" : "Dining";
-    const detailLabel = roomId ? `Suite: ${bookedRoomName} (Rate: £${roomRateAtBooking}/night)` : `Seating Time: ${time}`;
+    const detailLabel = roomId 
+      ? `Suite: ${bookedRoomName} (Rate: £${roomRateAtBooking}/night, Discount Applied: ${discount * 100}%, Paid: £${finalAmount})` 
+      : `Seating Time: ${time}`;
 
     console.log(`
 ============================================================

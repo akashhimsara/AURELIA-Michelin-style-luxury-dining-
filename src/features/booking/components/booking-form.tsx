@@ -3,7 +3,7 @@
 import React, { useState, useTransition, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Calendar, Clock, Users, ShieldCheck, RefreshCw, Home } from "lucide-react";
+import { Check, Calendar, Clock, Users, ShieldCheck, RefreshCw, Landmark, Percent } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Heading } from "@/components/ui/heading";
 import { reservationSchema, ReservationFormInput } from "../schema";
@@ -12,10 +12,12 @@ import { createReservation } from "../actions";
 interface BookingFormProps {
   roomId?: string;
   selectedRoomName?: string | null;
+  roomPrice?: number;
   date?: string;
+  promo?: string;
 }
 
-export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps) {
+export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }: BookingFormProps) {
   const [isPending, startTransition] = useTransition();
   const [successData, setSuccessData] = useState<any>(null);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -28,6 +30,7 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
     setValue,
     formState: { errors },
     reset,
+    watch,
   } = useForm<ReservationFormInput>({
     resolver: zodResolver(reservationSchema),
     defaultValues: {
@@ -35,6 +38,7 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
       time: isRoomBooking ? null : "19:00",
       date: date || new Date().toISOString().split("T")[0],
       roomId: roomId || null,
+      promoCode: promo || "",
     },
   });
 
@@ -47,7 +51,31 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
     if (date) {
       setValue("date", date);
     }
-  }, [roomId, date, setValue]);
+    if (promo) {
+      setValue("promoCode", promo);
+    }
+  }, [roomId, date, promo, setValue]);
+
+  // Live promo codes calculation
+  const promoCodeValue = watch("promoCode") || "";
+  const code = promoCodeValue.toUpperCase().trim();
+  let discountRate = 0;
+  let promoMessage = "";
+
+  if (code === "ROYAL15") {
+    discountRate = 0.15;
+    promoMessage = "15% Royal Escape discount applied";
+  } else if (code === "MICHELIN10") {
+    discountRate = 0.10;
+    promoMessage = "10% Gastronomy package discount applied";
+  } else if (code === "SANCTUARY20") {
+    discountRate = 0.20;
+    promoMessage = "20% Wellness Retreat discount applied";
+  }
+
+  const basePrice = roomPrice || 0;
+  const discountAmount = basePrice * discountRate;
+  const finalPrice = basePrice - discountAmount;
 
   const onSubmit = (data: ReservationFormInput) => {
     setServerError(null);
@@ -99,16 +127,15 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
             <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Guest</span>
             <span className="font-medium text-zinc-200">{successData.name}</span>
           </div>
+
           <div>
-            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Guests Count</span>
-            <span className="flex items-center gap-1.5 font-medium text-zinc-200">
-              <Users size={12} className="text-gold" /> {successData.guests} guests
-            </span>
+            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Guests Size</span>
+            <span className="font-medium text-zinc-200">{successData.guests} guests</span>
           </div>
-          <div className="pt-2">
-            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Check-in Date</span>
-            <span className="flex items-center gap-1.5 font-medium text-zinc-200">
-              <Calendar size={12} className="text-gold" />{" "}
+
+          <div>
+            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Target Date</span>
+            <span className="font-medium text-zinc-200">
               {new Date(successData.date).toLocaleDateString("en-GB", {
                 day: "2-digit",
                 month: "short",
@@ -116,37 +143,25 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
               })}
             </span>
           </div>
-          <div className="pt-2">
-            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Arrangement Type</span>
-            <span className="flex items-center gap-1.5 font-medium text-zinc-200">
-              {isRoomBooking ? (
-                <>
-                  <Home size={12} className="text-gold" /> Accommodation
-                </>
-              ) : (
-                <>
-                  <Clock size={12} className="text-gold" /> Table Seating
-                </>
-              )}
+
+          <div>
+            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">
+              {isRoomBooking ? "Lodging Unit" : "Dining Slot"}
+            </span>
+            <span className="font-medium text-zinc-200">
+              {isRoomBooking ? successData.bookedRoomName : successData.time}
             </span>
           </div>
-          
-          {isRoomBooking && successData.bookedRoomName && (
-            <div className="col-span-2 border-t border-gold/5 pt-2 mt-2">
-              <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Selected Luxury Suite</span>
-              <span className="font-medium text-zinc-200">{successData.bookedRoomName}</span>
+
+          {isRoomBooking && successData.roomRateAtBooking && (
+            <div className="col-span-2 pt-2 border-t border-gold/5 flex justify-between items-center">
+              <span className="text-[9px] uppercase tracking-wider text-zinc-500">Locked Deposit billing</span>
+              <span className="font-mono text-gold font-medium">&pound;{successData.roomRateAtBooking.toFixed(2)}</span>
             </div>
           )}
-
-          <div className="col-span-2 border-t border-gold/5 pt-4 mt-2">
-            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Booking Code</span>
-            <span className="font-mono text-gold text-sm tracking-widest font-semibold">
-              {successData.id.slice(0, 8).toUpperCase()}
-            </span>
-          </div>
         </div>
 
-        <p className="text-[11px] text-zinc-500 font-sans max-w-sm mx-auto leading-relaxed">
+        <p className="text-xs text-zinc-400 font-sans font-light max-w-sm mx-auto leading-relaxed">
           A confirmation summary has been dispatched. {isRoomBooking ? "Check-in time starts at 15:00 PM." : "Please note our smart elegant dress code."} We look forward to hosting you.
         </p>
 
@@ -291,9 +306,9 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
           )}
 
           {/* Guest Count */}
-          <div className="space-y-1.5 col-span-1 sm:col-span-2">
+          <div className="space-y-1.5">
             <label htmlFor="guests" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
-              {isRoomBooking ? "Number of Guests (Max Suite Capacity)" : "Number of Guests"}
+              {isRoomBooking ? "Number of Guests" : "Number of Guests"}
             </label>
             <select
               id="guests"
@@ -310,10 +325,48 @@ export function BookingForm({ roomId, selectedRoomName, date }: BookingFormProps
               <span className="text-[10px] text-red-400 font-sans block">{errors.guests.message}</span>
             )}
           </div>
+
+          {/* Promo Code input */}
+          <div className="space-y-1.5">
+            <label htmlFor="promoCode" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+              Promo Code
+            </label>
+            <input
+              id="promoCode"
+              type="text"
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
+              placeholder="e.g., ROYAL15"
+              {...register("promoCode")}
+            />
+          </div>
         </div>
 
+        {/* Dynamic price calculation display for lodging bookings */}
+        {isRoomBooking && roomPrice && (
+          <div className="p-4 bg-black/50 border border-gold/15 rounded-sm space-y-2 text-xs font-sans">
+            <div className="flex justify-between items-center text-zinc-400">
+              <span>Base Rate per Night:</span>
+              <span className="font-mono text-zinc-200">&pound;{basePrice.toFixed(2)}</span>
+            </div>
+
+            {discountRate > 0 && (
+              <div className="flex justify-between items-center text-emerald-400">
+                <span className="flex items-center gap-1">
+                  <Percent size={12} /> {promoMessage}
+                </span>
+                <span className="font-mono">-&pound;{discountAmount.toFixed(2)}</span>
+              </div>
+            )}
+
+            <div className="pt-2 border-t border-gold/5 flex justify-between items-center text-sm">
+              <span className="text-zinc-300 font-medium">Estimated Deposit Due:</span>
+              <span className="font-mono text-gold font-semibold">&pound;{finalPrice.toFixed(2)}</span>
+            </div>
+          </div>
+        )}
+
         {/* Submit */}
-        <div className="pt-4">
+        <div className="pt-2">
           <Button
             type="submit"
             variant="primary"

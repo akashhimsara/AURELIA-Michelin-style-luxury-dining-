@@ -26,6 +26,7 @@ export function Navbar() {
     { label: "Wellness", href: "/spa" },
     { label: "Gallery", href: "/gallery" },
     { label: "Events", href: "/events" },
+    { label: "Offers", href: "/offers" },
     { label: "Admin Console", href: "/admin" },
   ];
 
