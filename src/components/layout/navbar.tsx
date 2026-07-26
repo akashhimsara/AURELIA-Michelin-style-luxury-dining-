@@ -70,6 +70,7 @@ export function Navbar() {
           onClick={() => setIsOpen(!isOpen)}
           className="md:hidden text-zinc-400 hover:text-gold focus:outline-none transition-colors"
           aria-label="Toggle navigation menu"
+          aria-expanded={isOpen}
         >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>

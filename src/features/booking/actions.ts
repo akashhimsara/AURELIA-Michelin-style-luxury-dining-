@@ -16,7 +16,20 @@ export async function createReservation(data: ReservationFormInput) {
   const { name, email, phone, date, time, guests } = validated.data;
 
   try {
-    // 2. Persist in Neon database using Prisma
+    // 2. Resolve default restaurant branch to satisfy relational database schema constraints
+    let restaurant = await db.restaurant.findFirst();
+    if (!restaurant) {
+      restaurant = await db.restaurant.create({
+        data: {
+          name: "AURELIA London",
+          address: "15 Bruton Place, Mayfair, London W1J 6NP",
+          phone: "+44 20 7123 4567",
+          email: "london@aurelia-dining.com",
+        },
+      });
+    }
+
+    // 3. Persist in Neon database using Prisma
     const reservation = await db.reservation.create({
       data: {
         name,
@@ -25,6 +38,7 @@ export async function createReservation(data: ReservationFormInput) {
         date: new Date(date),
         time,
         guests,
+        restaurantId: restaurant.id,
       },
     });
 
