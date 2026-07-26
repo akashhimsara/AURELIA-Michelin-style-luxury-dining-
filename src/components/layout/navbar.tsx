@@ -23,6 +23,7 @@ export function Navbar() {
     { label: "Suites", href: "/rooms" },
     { label: "Gastronomy", href: "/#menu" },
     { label: "Wellness", href: "/spa" },
+    { label: "Gallery", href: "/gallery" },
     { label: "Events", href: "/events" },
     { label: "Admin Console", href: "/admin" },
   ];
