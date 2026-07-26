@@ -12,6 +12,38 @@ datasource db {
   provider = "postgresql"
 }
 
+model Role {
+  id        String   @id @default(uuid())
+  name      String   @unique // e.g., guest, concierge, admin
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  phone        String?
+  roleId       String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  role         Role?         @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  reservations Reservation[]
+
+  @@index([roleId])
+}
+
+model Admin {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  passwordHash String
+  role         String        @default("manager") // manager, superadmin
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+}
+
 model Restaurant {
   id           String        @id @default(uuid())
   name         String
@@ -28,47 +60,58 @@ model Restaurant {
   events       Event[]
 }
 
-model User {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  name         String
-  phone        String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+model Room {
+  id            String        @id @default(uuid())
+  name          String        @unique // e.g., Ocean Presidential Suite
+  description   String
+  pricePerNight Decimal       @db.Decimal(10, 2)
+  capacity      Int
+  imageUrl      String
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 
   // Relations
-  reservations Reservation[]
+  reservations  Reservation[]
+  facilities    Facility[]
 }
 
-model Admin {
-  id           String        @id @default(uuid())
-  email        String        @unique
-  passwordHash String
-  role         String        @default("manager") // manager, superadmin
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+model Facility {
+  id          String   @id @default(uuid())
+  name        String   @unique // e.g., Private Infinity Pool, Butler Service
+  description String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  rooms       Room[]
 }
 
 model Reservation {
-  id           String      @id @default(uuid())
-  restaurantId String
-  userId       String?
-  name         String      // Fallback or user input
-  email        String
-  phone        String
-  date         DateTime
-  time         String
-  guests       Int
-  status       String      @default("pending") // pending, confirmed, cancelled
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id                  String      @id @default(uuid())
+  restaurantId        String?
+  roomId              String?
+  userId              String?
+  name                String      // Guest name fallback
+  email               String
+  phone               String
+  date                DateTime
+  time                String?     // Optional (seating slots use time, rooms use dates)
+  guests              Int
+  status              String      @default("pending") // pending, confirmed, cancelled
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  // Historical Billing Snapshots
+  roomRateAtBooking   Decimal?    @db.Decimal(10, 2)
+  bookedRoomName      String?
+  finalAmount         Decimal?    @db.Decimal(10, 2)
 
   // Relations
-  restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
-  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  restaurant          Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  room                Room?       @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user                User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   // Indexes
   @@index([restaurantId])
+  @@index([roomId])
   @@index([userId])
   @@index([date])
 }
@@ -128,6 +171,28 @@ model Event {
   @@index([date])
 }
 
+model Offer {
+  id            String    @id @default(uuid())
+  code          String    @unique // e.g., ESCAPE20
+  title         String
+  description   String
+  discountType  String    // percentage, fixed
+  discountValue Decimal   @db.Decimal(10, 2)
+  startDate     DateTime
+  endDate       DateTime
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+}
+
+model Testimonial {
+  id        String   @id @default(uuid())
+  name      String
+  avatarUrl String?
+  quote     String
+  rating    Int      @default(5)
+  createdAt DateTime @default(now())
+}
+
 model Message {
   id        String   @id @default(uuid())
   name      String
@@ -136,4 +201,22 @@ model Message {
   message   String
   status    String   @default("unread") // unread, read, archived
   createdAt DateTime @default(now())
+}
+
+model Newsletter {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Blog {
+  id          String   @id @default(uuid())
+  title       String
+  slug        String   @unique
+  content     String
+  category    String   // Culinary, Wellness, Heritage
+  imageUrl    String
+  authorName  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

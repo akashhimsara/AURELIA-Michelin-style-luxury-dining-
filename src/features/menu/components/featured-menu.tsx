@@ -105,7 +105,7 @@ export async function FeaturedMenu() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {mappedDishes.map((dish, index) => (
             <AnimationWrapper key={dish.id} delay={0.2 + index * 0.15}>
-              <MenuCard item={dish} />
+              <MenuCard item={dish} priority={index === 0} />
             </AnimationWrapper>
           ))}
         </div>

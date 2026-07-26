@@ -13,9 +13,10 @@ export interface MenuItem {
 
 interface MenuCardProps {
   item: MenuItem;
+  priority?: boolean;
 }
 
-export function MenuCard({ item }: MenuCardProps) {
+export function MenuCard({ item, priority }: MenuCardProps) {
   return (
     <article className="group relative flex flex-col justify-between p-3 border border-gold/10 bg-charcoal/40 rounded-sm overflow-hidden gold-border-glow shadow-elevation h-full">
       {/* Decorative inner hairline border */}
@@ -30,7 +31,8 @@ export function MenuCard({ item }: MenuCardProps) {
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1024px) 33vw, 350px"
             className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-            loading="lazy"
+            loading={priority ? undefined : "lazy"}
+            priority={priority}
           />
         </div>
 

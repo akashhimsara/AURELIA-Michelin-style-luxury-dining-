@@ -13,45 +13,76 @@ export async function createReservation(data: ReservationFormInput) {
     };
   }
 
-  const { name, email, phone, date, time, guests } = validated.data;
+  const { name, email, phone, date, time, guests, roomId, restaurantId } = validated.data;
 
   try {
-    // 2. Resolve default restaurant branch to satisfy relational database schema constraints
-    let restaurant = await db.restaurant.findFirst();
-    if (!restaurant) {
-      restaurant = await db.restaurant.create({
-        data: {
-          name: "AURELIA London",
-          address: "15 Bruton Place, Mayfair, London W1J 6NP",
-          phone: "+44 20 7123 4567",
-          email: "london@aurelia-dining.com",
-        },
+    let bookedRoomName: string | null = null;
+    let roomRateAtBooking: number | null = null;
+    let finalAmount: number | null = null;
+
+    // 2. If Room booking, fetch the details to freeze historical rates
+    if (roomId) {
+      const room = await db.room.findUnique({
+        where: { id: roomId },
       });
+      if (!room) {
+        return {
+          success: false,
+          message: "The requested accommodation suite could not be found.",
+        };
+      }
+      bookedRoomName = room.name;
+      roomRateAtBooking = Number(room.pricePerNight);
+      finalAmount = roomRateAtBooking; // Billing rate per night
     }
 
-    // 3. Persist in Neon database using Prisma
+    // 3. Resolve default restaurant branch for dining bookings
+    let resolvedRestaurantId = restaurantId;
+    if (!roomId && !resolvedRestaurantId) {
+      let restaurant = await db.restaurant.findFirst();
+      if (!restaurant) {
+        restaurant = await db.restaurant.create({
+          data: {
+            name: "AURELIA London",
+            address: "15 Bruton Place, Mayfair, London W1J 6NP",
+            phone: "+44 20 7123 4567",
+            email: "london@aurelia-dining.com",
+          },
+        });
+      }
+      resolvedRestaurantId = restaurant.id;
+    }
+
+    // 4. Persist in database using Prisma with historical snapshots
     const reservation = await db.reservation.create({
       data: {
         name,
         email,
         phone,
         date: new Date(date),
-        time,
+        time: time || null,
         guests,
-        restaurantId: restaurant.id,
+        restaurantId: resolvedRestaurantId || null,
+        roomId: roomId || null,
+        roomRateAtBooking: roomRateAtBooking ? roomRateAtBooking : null,
+        bookedRoomName: bookedRoomName || null,
+        finalAmount: finalAmount ? finalAmount : null,
       },
     });
 
-    // 3. Mock dispatching transactional confirmation email
+    // 5. Mock dispatching transactional confirmation email
+    const bookingType = roomId ? "Accommodation" : "Dining";
+    const detailLabel = roomId ? `Suite: ${bookedRoomName} (Rate: £${roomRateAtBooking}/night)` : `Seating Time: ${time}`;
+
     console.log(`
 ============================================================
-[MOCK MAIL SERVICE] Sending Confirmation Email
+[MOCK MAIL SERVICE] Sending Transactional Confirmation Email
 To: ${email}
-Subject: AURELIA London - Reservation Confirmed (${reservation.id.slice(0, 8).toUpperCase()})
+Subject: AURELIA London - ${bookingType} Confirmed (${reservation.id.slice(0, 8).toUpperCase()})
 ------------------------------------------------------------
 Dear ${name},
 
-We are delighted to confirm your reservation at AURELIA London.
+We are delighted to confirm your ${bookingType.toLowerCase()} arrangement at AURELIA London.
 
 Details of your booking:
 - Guests: ${guests} guests
@@ -61,10 +92,10 @@ Details of your booking:
       month: "long",
       day: "numeric",
     })}
-- Time: ${time}
+- ${detailLabel}
 - Booking Code: ${reservation.id.slice(0, 8).toUpperCase()}
 
-Our dress code is smart elegant. We look forward to welcoming you.
+${roomId ? "Our check-in begins at 15:00 PM." : "Our dress code is smart elegant."} We look forward to welcoming you.
 
 Warmest regards,
 The AURELIA Guest Relations Team
@@ -79,6 +110,8 @@ The AURELIA Guest Relations Team
         date: reservation.date.toISOString(),
         time: reservation.time,
         guests: reservation.guests,
+        bookedRoomName: reservation.bookedRoomName,
+        roomRateAtBooking: reservation.roomRateAtBooking ? Number(reservation.roomRateAtBooking) : null,
       },
     };
   } catch (error) {

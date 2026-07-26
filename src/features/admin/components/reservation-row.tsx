@@ -11,7 +11,7 @@ interface ReservationRowProps {
     email: string;
     phone: string;
     date: string;
-    time: string;
+    time: string | null;
     guests: number;
     status: string;
   };
@@ -46,7 +46,7 @@ export function ReservationRow({ reservation }: ReservationRowProps) {
           year: "numeric",
         })}
       </td>
-      <td className="p-4 font-medium">{reservation.time}</td>
+      <td className="p-4 font-medium">{reservation.time || "Full Day"}</td>
       <td className="p-4 text-center">{reservation.guests}</td>
       <td className="p-4">
         <span
