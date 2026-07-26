@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useTransition } from "react";
-import { Check, X, Trash2, Loader2 } from "lucide-react";
+import { Check, X, Trash2, Loader2, Edit2 } from "lucide-react";
 import { updateReservationStatus, deleteReservation } from "../actions/reservations";
 
 interface ReservationRowProps {
@@ -14,10 +14,12 @@ interface ReservationRowProps {
     time: string | null;
     guests: number;
     status: string;
+    roomId: string | null;
   };
+  onEdit: (reservation: any) => void;
 }
 
-export function ReservationRow({ reservation }: ReservationRowProps) {
+export function ReservationRow({ reservation, onEdit }: ReservationRowProps) {
   const [isPending, startTransition] = useTransition();
 
   const handleStatusChange = (status: string) => {
@@ -46,7 +48,9 @@ export function ReservationRow({ reservation }: ReservationRowProps) {
           year: "numeric",
         })}
       </td>
-      <td className="p-4 font-medium">{reservation.time || "Full Day"}</td>
+      <td className="p-4 font-medium">
+        {reservation.roomId ? `Suite: ${reservation.roomId.slice(0, 8).toUpperCase()}` : reservation.time || "Full Day"}
+      </td>
       <td className="p-4 text-center">{reservation.guests}</td>
       <td className="p-4">
         <span
@@ -61,13 +65,20 @@ export function ReservationRow({ reservation }: ReservationRowProps) {
           {reservation.status}
         </span>
       </td>
-      <td className="p-4 text-right">
+      <td className="p-4 text-right font-sans">
         {isPending ? (
           <div className="flex justify-end pr-4">
             <Loader2 size={14} className="animate-spin text-gold" />
           </div>
         ) : (
           <div className="flex justify-end gap-2">
+            <button
+              onClick={() => onEdit(reservation)}
+              className="p-1 border border-gold/20 bg-gold/5 text-gold hover:bg-gold/20 transition-colors outline-none cursor-pointer"
+              title="Reschedule / Edit Booking"
+            >
+              <Edit2 size={12} />
+            </button>
             {reservation.status !== "confirmed" && (
               <button
                 onClick={() => handleStatusChange("confirmed")}
