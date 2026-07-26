@@ -220,3 +220,14 @@ model Blog {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+model Spa {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  duration    String   // e.g. "90 Mins"
+  price       Decimal  @db.Decimal(10, 2)
+  description String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
