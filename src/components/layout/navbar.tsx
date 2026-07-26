@@ -58,9 +58,11 @@ export function Navbar() {
 
         {/* CTA Reserve */}
         <div className="hidden md:block">
-          <Button variant="outline" size="sm">
-            Reserve
-          </Button>
+          <Link href="/reserve">
+            <Button variant="outline" size="sm">
+              Reserve
+            </Button>
+          </Link>
         </div>
 
         {/* Mobile Navigation Trigger */}
@@ -92,14 +94,16 @@ export function Navbar() {
               {link.label}
             </Link>
           ))}
-          <Button
-            variant="primary"
-            size="sm"
-            className="w-[200px] mt-4"
-            onClick={() => setIsOpen(false)}
-          >
-            Reserve
-          </Button>
+          <Link href="/reserve">
+            <Button
+              variant="primary"
+              size="sm"
+              className="w-[200px] mt-4"
+              onClick={() => setIsOpen(false)}
+            >
+              Reserve
+            </Button>
+          </Link>
         </nav>
       </div>
     </header>
