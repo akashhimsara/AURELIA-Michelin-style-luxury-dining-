@@ -22,7 +22,7 @@ export function Navbar() {
   const navLinks = [
     { label: "Suites", href: "/rooms" },
     { label: "Gastronomy", href: "/#menu" },
-    { label: "Our Story", href: "/#story" },
+    { label: "Events", href: "/events" },
     { label: "Admin Console", href: "/admin" },
   ];
 
