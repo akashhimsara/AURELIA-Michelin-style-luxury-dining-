@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useActionState, useEffect } from "react";
+import React, { useActionState } from "react";
 import { Lock, Mail, RefreshCw } from "lucide-react";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
@@ -8,12 +8,6 @@ import { loginAdmin } from "../actions/auth";
 
 export function LoginForm() {
   const [state, formAction, isPending] = useActionState(loginAdmin, null);
-
-  useEffect(() => {
-    if (state?.success) {
-      window.location.href = "/admin";
-    }
-  }, [state]);
 
   return (
     <div className="w-full max-w-md mx-auto p-6 sm:p-8 border border-gold/15 bg-charcoal/40 rounded-sm shadow-elevation relative luxury-glass">

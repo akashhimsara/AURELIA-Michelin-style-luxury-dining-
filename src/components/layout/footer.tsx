@@ -88,12 +88,12 @@ export function Footer() {
                 </a>
               </li>
               <li>
-                <a
-                  href="#contact"
+                <Link
+                  href="/events"
                   className="hover:text-gold transition-colors"
                 >
                   Inquire
-                </a>
+                </Link>
               </li>
             </ul>
           </div>

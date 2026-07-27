@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import crypto from "crypto";
 import { db } from "@/lib/db";
 import { encrypt } from "../utils/auth";
+import { redirect } from "next/navigation";
 
 function hashPassword(password: string) {
   return crypto.createHash("sha256").update(password).digest("hex");
@@ -17,6 +18,7 @@ export async function loginAdmin(prevState: any, formData: FormData) {
     return { error: "Please enter both email and password." };
   }
 
+  let success = false;
   try {
     // 1. Resolve or create default admin account for zero-config onboarding
     let admin = await db.admin.findUnique({
@@ -64,10 +66,14 @@ export async function loginAdmin(prevState: any, formData: FormData) {
       maxAge: 2 * 60 * 60, // 2 hours
     });
 
-    return { success: true };
+    success = true;
   } catch (error) {
     console.error("Login failure:", error);
     return { error: "An internal server error occurred." };
+  }
+
+  if (success) {
+    redirect("/admin");
   }
 }
 
