@@ -29,6 +29,7 @@ export function InquiryList({ messages }: InquiryListProps) {
     { label: "All Inquiries", val: "all" },
     { label: "Unread", val: "unread" },
     { label: "Read", val: "read" },
+    { label: "Replied", val: "replied" },
     { label: "Archived", val: "archived" },
   ];
 
