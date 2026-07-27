@@ -8,12 +8,12 @@ import { BookingWidget } from "@/features/accommodation/components/booking-widge
 import { RoomCard } from "@/features/accommodation/components/room-card";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Accommodation | AURELIA London",
   description: "Experience absolute architectural luxury and bespoke guest suites.",
 };
-
-export const dynamic = "force-dynamic";
 
 export default async function RoomsPage({
   searchParams,

@@ -9,6 +9,8 @@ import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Percent, ArrowRight } from "lucide-react";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Exclusive Offers & Packages | AURELIA London",
   description: "Browse bespoke seasonal escapes, Michelin dining bundles, and wellness retreats at AURELIA.",

@@ -7,6 +7,8 @@ import { Heading } from "@/components/ui/heading";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { PrivateDiningForm } from "@/features/private-dining/components/private-dining-form";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Bespoke Private Dining | AURELIA London",
   description: "Dine at Aurelia's exclusive private rooms including The Chef's Oak Table, The Botanical Glasshouse, and The Vintage Wine Crypt.",
