@@ -10,7 +10,7 @@ export function Hero() {
   return (
     <Section
       padding="none"
-      className="relative min-h-[85vh] flex items-center justify-center bg-black overflow-hidden"
+      className="relative min-h-[92vh] flex items-center justify-center bg-black overflow-hidden"
     >
       {/* Ambient background gold leaf lighting leaks */}
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,_rgba(212,175,55,0.03)_0%,_transparent_65%)] pointer-events-none" />
@@ -58,15 +58,15 @@ export function Hero() {
             </div>
           </AnimationWrapper>
         </div>
-
-        {/* Scroll Indicator */}
-        <AnimationWrapper delay={1.2} className="absolute bottom-[-60px] left-1/2 -translate-x-1/2 hidden sm:block">
-          <div className="flex flex-col items-center gap-3">
-            <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-500 font-sans">Scroll</span>
-            <div className="w-[1px] h-10 bg-gradient-to-b from-gold/40 to-transparent" />
-          </div>
-        </AnimationWrapper>
       </Container>
+
+      {/* Scroll Indicator - positioned relative to Section for accurate placement */}
+      <AnimationWrapper delay={1.2} className="absolute bottom-20 left-1/2 -translate-x-1/2 hidden sm:block z-20">
+        <div className="flex flex-col items-center gap-3">
+          <span className="text-[9px] uppercase tracking-[0.3em] text-zinc-500 font-sans">Scroll</span>
+          <div className="w-[1px] h-10 bg-gradient-to-b from-gold/40 to-transparent" />
+        </div>
+      </AnimationWrapper>
     </Section>
   );
 }
