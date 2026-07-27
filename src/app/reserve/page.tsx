@@ -17,12 +17,14 @@ export default async function ReservePage({
   searchParams: Promise<{
     roomId?: string;
     date?: string;
+    promo?: string;
   }>;
 }) {
   const resolvedParams = await searchParams;
-  const { roomId, date } = resolvedParams;
+  const { roomId, date, promo } = resolvedParams;
 
   let selectedRoomName: string | null = null;
+  let selectedRoomPrice: number | null = null;
 
   if (roomId) {
     const room = await db.room.findUnique({
@@ -30,6 +32,7 @@ export default async function ReservePage({
     });
     if (room) {
       selectedRoomName = room.name;
+      selectedRoomPrice = Number(room.pricePerNight);
     }
   }
 
@@ -55,7 +58,9 @@ export default async function ReservePage({
           <BookingForm 
             roomId={roomId} 
             selectedRoomName={selectedRoomName} 
+            roomPrice={selectedRoomPrice || undefined}
             date={date} 
+            promo={promo}
           />
         </Container>
       </Section>

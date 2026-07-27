@@ -11,6 +11,7 @@ export const reservationSchema = z.object({
   guests: z.number().min(1, "Minimum of 1 guest").max(10, "Maximum of 10 guests"),
   roomId: z.string().optional().nullable(),
   restaurantId: z.string().optional().nullable(),
+  promoCode: z.string().optional().nullable(),
 });
 
 export type ReservationFormInput = z.infer<typeof reservationSchema>;
