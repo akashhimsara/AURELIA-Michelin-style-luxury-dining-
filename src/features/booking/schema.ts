@@ -7,8 +7,10 @@ export const reservationSchema = z.object({
   date: z.string().refine((val) => !isNaN(Date.parse(val)), {
     message: "Invalid date",
   }),
-  time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time format (HH:MM)"),
+  time: z.string().optional().nullable(),
   guests: z.number().min(1, "Minimum of 1 guest").max(10, "Maximum of 10 guests"),
+  roomId: z.string().optional().nullable(),
+  restaurantId: z.string().optional().nullable(),
 });
 
 export type ReservationFormInput = z.infer<typeof reservationSchema>;

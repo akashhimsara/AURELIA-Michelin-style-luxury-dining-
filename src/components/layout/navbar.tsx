@@ -20,22 +20,22 @@ export function Navbar() {
   }, []);
 
   const navLinks = [
-    { label: "The Menu", href: "#menu" },
-    { label: "Our Story", href: "#story" },
-    { label: "Chef's Table", href: "#chefs-table" },
-    { label: "Private Events", href: "#events" },
+    { label: "Suites", href: "/rooms" },
+    { label: "Gastronomy", href: "/#menu" },
+    { label: "Events", href: "/events" },
+    { label: "Admin Console", href: "/admin" },
   ];
 
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
         isScrolled
-          ? "bg-black/85 backdrop-blur-lg border-b border-gold/10 py-4"
+          ? "bg-black/95 backdrop-blur-lg border-b border-gold/10 py-4"
           : "bg-transparent py-6"
       }`}
     >
       <Container className="flex items-center justify-between">
-        {/* Brand Identity */}
+        {/* Brand Identity Logo */}
         <Link
           href="/"
           className="font-serif text-xl sm:text-2xl font-light tracking-[0.2em] text-gold-gradient"
@@ -43,7 +43,7 @@ export function Navbar() {
           AURELIA
         </Link>
 
-        {/* Desktop Navigation */}
+        {/* Desktop Navigation Links */}
         <nav className="hidden md:flex items-center gap-10">
           {navLinks.map((link) => (
             <Link
@@ -56,7 +56,7 @@ export function Navbar() {
           ))}
         </nav>
 
-        {/* CTA Reserve */}
+        {/* CTA Reserve Trigger */}
         <div className="hidden md:block">
           <Link href="/reserve">
             <Button variant="outline" size="sm">
@@ -70,6 +70,7 @@ export function Navbar() {
           onClick={() => setIsOpen(!isOpen)}
           className="md:hidden text-zinc-400 hover:text-gold focus:outline-none transition-colors"
           aria-label="Toggle navigation menu"
+          aria-expanded={isOpen}
         >
           {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>

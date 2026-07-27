@@ -1,4 +1,5 @@
 import React from "react";
+import Link from "next/link";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
@@ -44,12 +45,16 @@ export function Hero() {
           {/* Action CTAs */}
           <AnimationWrapper delay={0.8} className="pt-6">
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button variant="primary" size="lg" className="w-full sm:w-auto">
-                Reserve a Table
-              </Button>
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                Explore the Menu
-              </Button>
+              <Link href="/reserve" className="w-full sm:w-auto">
+                <Button variant="primary" size="lg" className="w-full">
+                  Reserve a Table
+                </Button>
+              </Link>
+              <Link href="/#menu" className="w-full sm:w-auto">
+                <Button variant="outline" size="lg" className="w-full">
+                  Explore the Menu
+                </Button>
+              </Link>
             </div>
           </AnimationWrapper>
         </div>
