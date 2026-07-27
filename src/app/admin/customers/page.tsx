@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Heading } from "@/components/ui/heading";
 import { db } from "@/lib/db";
 import { CustomerRow } from "@/features/admin/components/customer-row";
+import { calculateLTV } from "@/features/admin/utils/crm";
 
 export const metadata: Metadata = {
   title: "Guest CRM | AURELIA Console",
@@ -119,15 +120,11 @@ export default async function AdminCustomersPage() {
 
   // Compile LTV metrics and booking frequencies
   const mappedCustomers = users.map((user) => {
-    let totalGuestsCount = 0;
-    let ltv = 0;
-
-    user.reservations.forEach((res) => {
-      totalGuestsCount += res.guests;
-      // If finalAmount is present, add it. Otherwise, use guest count dining estimate (£75 per head)
-      const reservationSpend = res.finalAmount ? Number(res.finalAmount) : (res.guests * 75);
-      ltv += reservationSpend;
-    });
+    const totalGuestsCount = user.reservations.reduce((sum, res) => sum + res.guests, 0);
+    const ltv = calculateLTV(user.reservations.map((res) => ({
+      finalAmount: res.finalAmount ? Number(res.finalAmount) : null,
+      guests: res.guests,
+    })));
 
     return {
       id: user.id,

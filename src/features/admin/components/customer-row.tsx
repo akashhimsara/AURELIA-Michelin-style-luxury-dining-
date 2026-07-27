@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { ChevronDown, ChevronUp, User, Calendar, CreditCard } from "lucide-react";
+import { getLoyaltyTier } from "../utils/crm";
 
 interface ReservationItem {
   id: string;
@@ -28,6 +29,7 @@ interface CustomerRowProps {
 
 export function CustomerRow({ customer }: CustomerRowProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const tier = getLoyaltyTier(customer.lifetimeValue);
 
   return (
     <>
@@ -40,7 +42,14 @@ export function CustomerRow({ customer }: CustomerRowProps) {
             <User size={12} />
           </div>
         </td>
-        <td className="p-4 font-medium text-zinc-200">{customer.name}</td>
+        <td className="p-4 font-medium text-zinc-200">
+          <div className="flex flex-wrap items-center gap-2">
+            <span>{customer.name}</span>
+            <span className={`px-1.5 py-0.5 text-[8px] uppercase tracking-wider font-semibold rounded-none ${tier.classes}`}>
+              {tier.label}
+            </span>
+          </div>
+        </td>
         <td className="p-4">{customer.email}</td>
         <td className="p-4 font-mono">{customer.phone || "N/A"}</td>
         <td className="p-4 text-center font-medium">{customer.totalBookings}</td>
