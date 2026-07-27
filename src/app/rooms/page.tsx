@@ -7,6 +7,7 @@ import { PageWrapper } from "@/components/ui/page-wrapper";
 import { BookingWidget } from "@/features/accommodation/components/booking-widget";
 import { RoomCard } from "@/features/accommodation/components/room-card";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -29,16 +30,18 @@ export default async function RoomsPage({
   const { checkin, checkout, guests } = resolvedParams;
 
   const guestsCount = guests ? parseInt(guests) : 2;
+  let rooms = [];
 
-  // Query database suites matching capacity constraints
-  let rooms = await db.room.findMany({
-    where: {
-      capacity: { gte: guestsCount },
-    },
-    include: {
-      facilities: true,
-    },
-  });
+  try {
+    // Query database suites matching capacity constraints
+    rooms = await db.room.findMany({
+      where: {
+        capacity: { gte: guestsCount },
+      },
+      include: {
+        facilities: true,
+      },
+    });
 
   // Automatically seed catalog on initial hit if empty (thread-safe upserts)
   if (rooms.length === 0) {
@@ -108,6 +111,40 @@ export default async function RoomsPage({
         facilities: true,
       },
     });
+  }
+} catch (error) {
+    console.warn("Database connection issue inside rooms page.tsx. Falling back to default rooms list.", error);
+    const fallbackSuites = [
+      {
+        id: "fallback-ocean",
+        name: "Ocean Presidential Villa",
+        description: "A masterwork of architectural luxury. Features floor-to-ceiling glass panes facing horizons, private deck lounges, and a dedicated butler team.",
+        pricePerNight: new Prisma.Decimal(850.00),
+        capacity: 4,
+        imageUrl: "/room-ocean.png",
+        facilities: [{ name: "Private Butler Service" }, { name: "Private Infinity Pool" }, { name: "Spa Bathroom" }],
+      },
+      {
+        id: "fallback-penthouse",
+        name: "Mayfair Penthouse Suite",
+        description: "Our signature urban retreat. Comprises generous lounge quadrants, a copper soaking bath, and access to private heliport transfer pads.",
+        pricePerNight: new Prisma.Decimal(1200.00),
+        capacity: 6,
+        imageUrl: "/room-penthouse.png",
+        facilities: [{ name: "Private Butler Service" }, { name: "Spa Bathroom" }],
+      },
+      {
+        id: "fallback-heritage",
+        name: "Deluxe Heritage Chamber",
+        description: "Classic styling coupled with contemporary utilities. Intimate seating alcoves, bespoke oak writing desks, and curated art accents.",
+        pricePerNight: new Prisma.Decimal(450.00),
+        capacity: 2,
+        imageUrl: "/room-heritage.png",
+        facilities: [{ name: "Spa Bathroom" }],
+      },
+    ];
+
+    rooms = fallbackSuites.filter((suite) => suite.capacity >= guestsCount);
   }
 
   const mappedRooms = rooms.map((room) => ({

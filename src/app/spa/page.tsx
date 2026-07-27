@@ -7,6 +7,7 @@ import { Heading } from "@/components/ui/heading";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { SpaBookingForm } from "@/features/spa/components/spa-booking-form";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -16,58 +17,72 @@ export const metadata: Metadata = {
 };
 
 export default async function SpaPage() {
-  let dbTherapies = await db.spa.findMany({
-    orderBy: {
-      createdAt: "desc",
+  let dbTherapies = [];
+  const defaultSpaItems = [
+    {
+      id: "fallback-massage",
+      name: "Himalayan Salt Stone Massage",
+      duration: "90 Mins",
+      price: 180.00,
+      description: "Deep thermal pressure therapy using hand-carved organic salt stones to release tension and enrich skin with 84 essential minerals.",
+      imageUrl: "/spa-massage.png",
     },
-  });
+    {
+      id: "fallback-facial",
+      name: "Gold Leaf Facial Regenerator",
+      duration: "60 Mins",
+      price: 240.00,
+      description: "Micro-massage lymphatic drainage followed by the application of authentic 24k gold leaves to restore skin elasticity and natural radiance.",
+      imageUrl: "/spa-facial.png",
+    },
+    {
+      id: "fallback-detox",
+      name: "Organic Seaweed Body Wrap",
+      duration: "75 Mins",
+      price: 150.00,
+      description: "A full-body mineral wrap of wild-harvested Atlantic seaweed to draw impurities, improve circulation, and lock in deep hydration.",
+      imageUrl: "/spa-detox.png",
+    },
+  ];
 
-  // Lazy-seed default treatments if empty to ensure out-of-the-box luxury styling
-  if (dbTherapies.length === 0) {
-    const defaultSpaItems = [
-      {
-        name: "Himalayan Salt Stone Massage",
-        duration: "90 Mins",
-        price: 180.00,
-        description: "Deep thermal pressure therapy using hand-carved organic salt stones to release tension and enrich skin with 84 essential minerals.",
-        imageUrl: "/spa-massage.png",
-      },
-      {
-        name: "Gold Leaf Facial Regenerator",
-        duration: "60 Mins",
-        price: 240.00,
-        description: "Micro-massage lymphatic drainage followed by the application of authentic 24k gold leaves to restore skin elasticity and natural radiance.",
-        imageUrl: "/spa-facial.png",
-      },
-      {
-        name: "Organic Seaweed Body Wrap",
-        duration: "75 Mins",
-        price: 150.00,
-        description: "A full-body mineral wrap of wild-harvested Atlantic seaweed to draw impurities, improve circulation, and lock in deep hydration.",
-        imageUrl: "/spa-detox.png",
-      },
-    ];
-
-    // Use thread-safe upserts to write default catalog entries
-    for (const item of defaultSpaItems) {
-      await db.spa.upsert({
-        where: { name: item.name },
-        update: {},
-        create: {
-          name: item.name,
-          duration: item.duration,
-          price: item.price,
-          description: item.description,
-          imageUrl: item.imageUrl,
-        },
-      });
-    }
-
+  try {
     dbTherapies = await db.spa.findMany({
       orderBy: {
         createdAt: "desc",
       },
     });
+
+    // Lazy-seed default treatments if empty to ensure out-of-the-box luxury styling
+    if (dbTherapies.length === 0) {
+      // Use thread-safe upserts to write default catalog entries
+      for (const item of defaultSpaItems) {
+        await db.spa.upsert({
+          where: { name: item.name },
+          update: {},
+          create: {
+            name: item.name,
+            duration: item.duration,
+            price: item.price,
+            description: item.description,
+            imageUrl: item.imageUrl,
+          },
+        });
+      }
+
+      dbTherapies = await db.spa.findMany({
+        orderBy: {
+          createdAt: "desc",
+        },
+      });
+    }
+  } catch (error) {
+    console.warn("Database connection issue inside spa page.tsx. Falling back to default therapies list.", error);
+    dbTherapies = defaultSpaItems.map((item) => ({
+      ...item,
+      price: new Prisma.Decimal(item.price),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }));
   }
 
   const mappedTherapies = dbTherapies.map((tp) => ({

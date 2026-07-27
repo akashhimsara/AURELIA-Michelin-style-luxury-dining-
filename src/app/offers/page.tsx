@@ -17,7 +17,17 @@ export const metadata: Metadata = {
 };
 
 export default async function OffersPage() {
-  const rooms = await db.room.findMany();
+  let rooms = [];
+  try {
+    rooms = await db.room.findMany();
+  } catch (error) {
+    console.warn("Database connection issue inside offers page.tsx. Falling back to default rooms list.", error);
+    rooms = [
+      { id: "fallback-penthouse", name: "Mayfair Penthouse Suite" },
+      { id: "fallback-heritage", name: "Deluxe Heritage Chamber" },
+      { id: "fallback-presidential", name: "Ocean Presidential Villa" },
+    ];
+  }
   
   // Resolve database room references dynamically
   const penthouse = rooms.find((r) => r.name.includes("Penthouse")) || rooms[0];
