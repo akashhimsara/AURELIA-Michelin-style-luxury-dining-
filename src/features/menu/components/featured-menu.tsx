@@ -6,64 +6,89 @@ import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { AnimationWrapper } from "@/components/ui/animation-wrapper";
 import { db } from "@/lib/db";
+import { Prisma } from "@/generated/prisma/client";
 import { MenuCard } from "./menu-card";
 
 async function getFeaturedDishes() {
-  let dishes = await db.menu.findMany({
-    orderBy: { createdAt: "desc" },
-  });
+  const fallbackDishes = [
+    {
+      id: "fallback-chanterelles",
+      name: "Forest Chanterelles",
+      description: "Pan-roasted wild chanterelle mushrooms, local pine oil infusion, and smoked emulsion served over warm chestnut purée.",
+      price: new Prisma.Decimal(26),
+      category: "Appetizer",
+      image: "/menu-chanterelles.png",
+      tags: ["Appetizer", "Foraged"],
+      restaurantId: "fallback-rest",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "fallback-halibut",
+      name: "Atlantic Halibut",
+      description: "Dry-aged white halibut steak, finished with oscietra caviar cream sauce, samphire spikes, and pressed sea herbs.",
+      price: new Prisma.Decimal(48),
+      category: "Main Course",
+      image: "/menu-halibut.png",
+      tags: ["Main Course", "Signature"],
+      restaurantId: "fallback-rest",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+    {
+      id: "fallback-pear",
+      name: "Saffron Honey Pear",
+      description: "Slow-poached autumn pear in saffron nectar, gold leaf garnish, served with whipped Madagascar vanilla bean custard.",
+      price: new Prisma.Decimal(18),
+      category: "Dessert",
+      image: "/menu-pear.png",
+      tags: ["Dessert", "Heritage"],
+      restaurantId: "fallback-rest",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  ];
 
-  if (dishes.length === 0) {
-    let restaurant = await db.restaurant.findFirst();
-    if (!restaurant) {
-      restaurant = await db.restaurant.create({
-        data: {
-          name: "AURELIA London",
-          address: "15 Bruton Place, Mayfair, London W1J 6NP",
-          phone: "+44 20 7123 4567",
-          email: "london@aurelia-dining.com",
-        },
+  try {
+    let dishes = await db.menu.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (dishes.length === 0) {
+      let restaurant = await db.restaurant.findFirst();
+      if (!restaurant) {
+        restaurant = await db.restaurant.create({
+          data: {
+            name: "AURELIA London",
+            address: "15 Bruton Place, Mayfair, London W1J 6NP",
+            phone: "+44 20 7123 4567",
+            email: "london@aurelia-dining.com",
+          },
+        });
+      }
+
+      await db.menu.createMany({
+        data: fallbackDishes.map((d) => ({
+          name: d.name,
+          description: d.description,
+          price: d.price,
+          category: d.category,
+          image: d.image,
+          tags: d.tags,
+          restaurantId: restaurant!.id,
+        })),
+      });
+
+      dishes = await db.menu.findMany({
+        orderBy: { createdAt: "desc" },
       });
     }
 
-    await db.menu.createMany({
-      data: [
-        {
-          name: "Forest Chanterelles",
-          description: "Pan-roasted wild chanterelle mushrooms, local pine oil infusion, and smoked emulsion served over warm chestnut purée.",
-          price: 26,
-          category: "Appetizer",
-          image: "/menu-chanterelles.png",
-          tags: ["Appetizer", "Foraged"],
-          restaurantId: restaurant.id,
-        },
-        {
-          name: "Atlantic Halibut",
-          description: "Dry-aged white halibut steak, finished with oscietra caviar cream sauce, samphire spikes, and pressed sea herbs.",
-          price: 48,
-          category: "Main Course",
-          image: "/menu-halibut.png",
-          tags: ["Main Course", "Signature"],
-          restaurantId: restaurant.id,
-        },
-        {
-          name: "Saffron Honey Pear",
-          description: "Slow-poached autumn pear in saffron nectar, gold leaf garnish, served with whipped Madagascar vanilla bean custard.",
-          price: 18,
-          category: "Dessert",
-          image: "/menu-pear.png",
-          tags: ["Dessert", "Heritage"],
-          restaurantId: restaurant.id,
-        },
-      ],
-    });
-
-    dishes = await db.menu.findMany({
-      orderBy: { createdAt: "desc" },
-    });
+    return dishes;
+  } catch (error) {
+    console.warn("Database connection issue inside featured-menu.tsx. Falling back to default menu items.", error);
+    return fallbackDishes;
   }
-
-  return dishes;
 }
 
 export async function FeaturedMenu() {
