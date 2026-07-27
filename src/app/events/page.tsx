@@ -73,7 +73,8 @@ export default function EventsPage() {
                       fill
                       sizes="(max-width: 1024px) 100vw, 350px"
                       className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-                      loading="lazy"
+                      priority={pkg.title.includes("Imperial")}
+                      loading={pkg.title.includes("Imperial") ? undefined : "lazy"}
                     />
                   </div>
 

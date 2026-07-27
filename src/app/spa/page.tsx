@@ -113,7 +113,7 @@ export default async function SpaPage() {
       <Section className="py-20 bg-black">
         <Container className="space-y-16">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {mappedTherapies.map((tp) => (
+            {mappedTherapies.map((tp, index) => (
               <article key={tp.id} className="group relative border border-gold/10 bg-charcoal/40 rounded-sm overflow-hidden gold-border-glow shadow-elevation flex flex-col justify-between">
                 <div className="absolute inset-1.5 border border-gold/5 pointer-events-none z-10" />
 
@@ -126,7 +126,8 @@ export default async function SpaPage() {
                       fill
                       sizes="(max-width: 1024px) 100vw, 350px"
                       className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-                      loading="lazy"
+                      priority={index === 0}
+                      loading={index === 0 ? undefined : "lazy"}
                     />
                   </div>
 

@@ -193,12 +193,13 @@ export default async function RoomsPage({
             </div>
           ) : (
             <div className="space-y-10">
-              {mappedRooms.map((room) => (
+              {mappedRooms.map((room, index) => (
                 <RoomCard
                   key={room.id}
                   room={room}
                   checkin={checkin}
                   checkout={checkout}
+                  priority={index === 0}
                 />
               ))}
             </div>
