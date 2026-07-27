@@ -8,6 +8,8 @@ import { PageWrapper } from "@/components/ui/page-wrapper";
 import { SpaBookingForm } from "@/features/spa/components/spa-booking-form";
 import { db } from "@/lib/db";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "Sanctuary Spa & Wellness | AURELIA London",
   description: "Rejuvenate at Aurelia with bespoke hot stone therapies, gold leaf facials, and organic body wraps.",
