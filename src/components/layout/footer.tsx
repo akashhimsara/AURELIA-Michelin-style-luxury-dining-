@@ -89,7 +89,7 @@ export function Footer() {
               </li>
               <li>
                 <Link
-                  href="/events"
+                  href="/inquire"
                   className="hover:text-gold transition-colors"
                 >
                   Inquire
