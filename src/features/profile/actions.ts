@@ -216,6 +216,28 @@ export async function getGuestDashboardData() {
       },
     });
 
+    const mapReservation = (res: any) => ({
+      id: res.id,
+      type: res.restaurantId
+        ? "Dining"
+        : res.bookedRoomName?.startsWith("Spa Treatment:")
+        ? "Spa"
+        : "Lodging",
+      name: res.restaurantId
+        ? res.restaurant?.name || "Restaurant Table"
+        : res.bookedRoomName?.startsWith("Spa Treatment:")
+        ? res.bookedRoomName.replace("Spa Treatment: ", "")
+        : res.room?.name || "Suite Stay",
+      date: res.date.toISOString(),
+      checkOutDate: res.checkOutDate?.toISOString() || null,
+      time: res.time,
+      guests: res.guests,
+      status: res.status,
+      finalAmount: res.finalAmount ? Number(res.finalAmount) : null,
+      specialRequests: res.specialRequests,
+      dietaryRequirements: res.dietaryRequirements,
+    });
+
     return {
       success: true,
       user: {
@@ -224,24 +246,8 @@ export async function getGuestDashboardData() {
       },
       loyaltyPoints: profile.loyaltyPoints,
       vipTier: profile.vipTier,
-      upcoming: upcoming.map((res) => ({
-        id: res.id,
-        type: res.restaurantId ? "Dining" : "Lodging",
-        name: res.restaurantId ? res.restaurant?.name || "Restaurant Table" : res.room?.name || "Suite Stay",
-        date: res.date.toISOString(),
-        time: res.time,
-        guests: res.guests,
-        status: res.status,
-      })),
-      history: history.map((res) => ({
-        id: res.id,
-        type: res.restaurantId ? "Dining" : "Lodging",
-        name: res.restaurantId ? res.restaurant?.name || "Restaurant Table" : res.room?.name || "Suite Stay",
-        date: res.date.toISOString(),
-        time: res.time,
-        guests: res.guests,
-        status: res.status,
-      })),
+      upcoming: upcoming.map(mapReservation),
+      history: history.map(mapReservation),
     };
   } catch (error) {
     console.error("Dashboard data error:", error);

@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Edit2 } from "lucide-react";
+import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Edit2 } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Section } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
@@ -29,10 +29,11 @@ interface ReservationItem {
 export default function ReservationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"lodging" | "dining">("lodging");
+  const [activeTab, setActiveTab] = useState<"lodging" | "dining" | "spa">("lodging");
   
   const [lodgingReservations, setLodgingReservations] = useState<ReservationItem[]>([]);
   const [diningReservations, setDiningReservations] = useState<ReservationItem[]>([]);
+  const [spaReservations, setSpaReservations] = useState<ReservationItem[]>([]);
   
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -53,9 +54,9 @@ export default function ReservationsPage() {
       router.push("/login");
     } else {
       const allUpcoming = res.upcoming || [];
-      // Filter out types
       setLodgingReservations(allUpcoming.filter((r: any) => r.type === "Lodging"));
       setDiningReservations(allUpcoming.filter((r: any) => r.type === "Dining"));
+      setSpaReservations(allUpcoming.filter((r: any) => r.type === "Spa"));
     }
     setLoading(false);
   }
@@ -84,7 +85,7 @@ export default function ReservationsPage() {
     setEditingId(res.id);
     setEditCheckIn(res.date.split("T")[0]);
     setEditCheckOut(res.checkOutDate ? res.checkOutDate.split("T")[0] : "");
-    setEditTime(res.time || "19:00");
+    setEditTime(res.time || "10:00");
     setEditGuests(res.guests);
     setEditSpecialRequests(res.specialRequests || "");
     setEditDietaryRequirements(res.dietaryRequirements || "");
@@ -103,8 +104,8 @@ export default function ReservationsPage() {
       setActionError("Check-in and Check-out dates must be fully specified.");
       return;
     }
-    if (type === "Dining" && !editCheckIn) {
-      setActionError("Dining reservation date must be specified.");
+    if ((type === "Dining" || type === "Spa") && !editCheckIn) {
+      setActionError("Reservation date must be specified.");
       return;
     }
 
@@ -114,7 +115,7 @@ export default function ReservationsPage() {
         editCheckIn,
         type === "Lodging" ? editCheckOut : null,
         editGuests,
-        type === "Dining" ? editTime : null,
+        (type === "Dining" || type === "Spa") ? editTime : null,
         type === "Dining" ? editSpecialRequests : null,
         type === "Dining" ? editDietaryRequirements : null
       );
@@ -140,7 +141,7 @@ Arrangement Class: ${res.type.toUpperCase()}
 Name:              ${res.name}
 Guests Count:      ${res.guests} guests
 Target Date:       ${new Date(res.date).toLocaleDateString("en-GB")}
-${res.type === "Lodging" ? `Check-out Date:    ${res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}` : `Seating Time:      ${res.time || "N/A"}`}
+${res.type === "Lodging" ? `Check-out Date:    ${res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}` : `Seating/Session:   ${res.time || "N/A"}`}
 ${res.type === "Dining" && res.dietaryRequirements ? `Dietary Notes:     ${res.dietaryRequirements}` : ""}
 ${res.type === "Dining" && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
 Grand Total:       £${res.finalAmount ? res.finalAmount.toFixed(2) : "0.00"}
@@ -167,7 +168,12 @@ Thank you for choosing AURELIA.
     );
   }
 
-  const currentList = activeTab === "lodging" ? lodgingReservations : diningReservations;
+  const currentList =
+    activeTab === "lodging"
+      ? lodgingReservations
+      : activeTab === "dining"
+      ? diningReservations
+      : spaReservations;
 
   return (
     <PageWrapper>
@@ -185,7 +191,7 @@ Thank you for choosing AURELIA.
 
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             <div>
-              <Heading subtitle>Stay & Dining Management</Heading>
+              <Heading subtitle>Stay & Wellness Management</Heading>
               <Heading as="h1" accent className="tracking-wide text-2xl sm:text-3xl">
                 Reservations Portal
               </Heading>
@@ -209,6 +215,14 @@ Thank you for choosing AURELIA.
               >
                 Gastronomy Dining
               </button>
+              <button
+                onClick={() => { setActiveTab("spa"); cancelEdit(); }}
+                className={`pb-2 transition-all cursor-pointer ${
+                  activeTab === "spa" ? "text-gold border-b border-gold font-medium" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Wellness Spa
+              </button>
             </div>
           </div>
 
@@ -227,17 +241,27 @@ Thank you for choosing AURELIA.
             {currentList.length === 0 ? (
               <div className="p-12 border border-gold/10 bg-charcoal/10 rounded-sm text-center">
                 <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-sans block">
-                  {activeTab === "lodging" ? "No Active Suite Bookings" : "No Active Table Bookings"}
+                  {activeTab === "lodging"
+                    ? "No Active Suite Bookings"
+                    : activeTab === "dining"
+                    ? "No Active Table Bookings"
+                    : "No Active Spa Bookings"}
                 </span>
                 <p className="text-[9px] text-zinc-600 mt-1 font-light font-sans">
                   {activeTab === "lodging"
                     ? "You currently do not have any room stay reservations at AURELIA London."
-                    : "You currently do not have any dining table reservations logged."}
+                    : activeTab === "dining"
+                    ? "You currently do not have any dining table reservations logged."
+                    : "You currently do not have any wellness spa treatment sessions booked."}
                 </p>
                 <div className="mt-6">
-                  <Link href={activeTab === "lodging" ? "/rooms" : "/reserve"}>
+                  <Link href={activeTab === "lodging" ? "/rooms" : activeTab === "dining" ? "/reserve" : "/spa"}>
                     <Button variant="outline" size="sm" className="uppercase tracking-widest font-sans text-[10px]">
-                      {activeTab === "lodging" ? "Book a Luxury Suite" : "Reserve Dining Table"}
+                      {activeTab === "lodging"
+                        ? "Book a Luxury Suite"
+                        : activeTab === "dining"
+                        ? "Reserve Dining Table"
+                        : "Book Spa Treatment"}
                     </Button>
                   </Link>
                 </div>
@@ -254,7 +278,13 @@ Thank you for choosing AURELIA.
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div className="flex items-center gap-3">
                           <div className="p-2.5 border border-gold/15 bg-gold/5 text-gold">
-                            {res.type === "Lodging" ? <BedDouble size={16} /> : <Coffee size={16} />}
+                            {res.type === "Lodging" ? (
+                              <BedDouble size={16} />
+                            ) : res.type === "Dining" ? (
+                              <Coffee size={16} />
+                            ) : (
+                              <Sparkles size={16} />
+                            )}
                           </div>
                           <div>
                             <span className="text-[8px] uppercase tracking-widest font-sans text-zinc-500 block">Ref: AUR-{code}</span>
@@ -273,15 +303,15 @@ Thank you for choosing AURELIA.
                           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-sans font-light text-zinc-400 py-2 border-y border-gold/5">
                             <div>
                               <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Date</span>
-                              <span className="text-zinc-300 font-medium font-sans">
+                              <span className="text-zinc-300 font-medium font-sans font-light">
                                 {new Date(res.date).toLocaleDateString("en-GB")}
                               </span>
                             </div>
                             <div>
                               <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">
-                                {res.type === "Lodging" ? "Check-out" : "Seating Time"}
+                                {res.type === "Lodging" ? "Check-out" : "Session Time"}
                               </span>
-                              <span className="text-zinc-300 font-medium font-sans">
+                              <span className="text-zinc-300 font-medium font-sans font-light">
                                 {res.type === "Lodging"
                                   ? res.checkOutDate
                                     ? new Date(res.checkOutDate).toLocaleDateString("en-GB")
@@ -291,7 +321,7 @@ Thank you for choosing AURELIA.
                             </div>
                             <div>
                               <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Guests</span>
-                              <span className="text-zinc-300 font-medium font-sans">{res.guests} Guests</span>
+                              <span className="text-zinc-300 font-medium font-sans font-light">{res.guests} Guests</span>
                             </div>
                             <div>
                               <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Estimated Spend</span>
@@ -301,7 +331,6 @@ Thank you for choosing AURELIA.
                             </div>
                           </div>
 
-                          {/* Dietary and Special requests details display */}
                           {res.type === "Dining" && (res.dietaryRequirements || res.specialRequests) && (
                             <div className="text-[11px] font-sans font-light space-y-1 text-zinc-400">
                               {res.dietaryRequirements && (
@@ -339,21 +368,37 @@ Thank you for choosing AURELIA.
                               </div>
                             ) : (
                               <div className="space-y-1">
-                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Seating Time</label>
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">
+                                  {res.type === "Spa" ? "Session Time" : "New Seating Time"}
+                                </label>
                                 <select
                                   className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
                                   value={editTime}
                                   onChange={(e) => setEditTime(e.target.value)}
                                 >
-                                  <option value="17:30">17:30 PM</option>
-                                  <option value="18:00">18:00 PM</option>
-                                  <option value="18:30">18:30 PM</option>
-                                  <option value="19:00">19:00 PM</option>
-                                  <option value="19:30">19:30 PM</option>
-                                  <option value="20:00">20:00 PM</option>
-                                  <option value="20:30">20:30 PM</option>
-                                  <option value="21:00">21:00 PM</option>
-                                  <option value="21:30">21:30 PM</option>
+                                  {res.type === "Spa" ? (
+                                    <>
+                                      <option value="09:00">09:00 AM</option>
+                                      <option value="10:30">10:30 AM</option>
+                                      <option value="12:00">12:00 PM</option>
+                                      <option value="13:30">13:30 PM</option>
+                                      <option value="15:00">15:00 PM</option>
+                                      <option value="16:30">16:30 PM</option>
+                                      <option value="18:00">18:00 PM</option>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <option value="17:30">17:30 PM</option>
+                                      <option value="18:00">18:00 PM</option>
+                                      <option value="18:30">18:30 PM</option>
+                                      <option value="19:00">19:00 PM</option>
+                                      <option value="19:30">19:30 PM</option>
+                                      <option value="20:00">20:00 PM</option>
+                                      <option value="20:30">20:30 PM</option>
+                                      <option value="21:00">21:00 PM</option>
+                                      <option value="21:30">21:30 PM</option>
+                                    </>
+                                  )}
                                 </select>
                               </div>
                             )}
