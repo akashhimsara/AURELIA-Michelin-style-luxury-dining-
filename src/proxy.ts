@@ -4,7 +4,7 @@ import { jwtVerify } from "jose";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret-aurelia-guest-key-123456789";
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Protected paths
