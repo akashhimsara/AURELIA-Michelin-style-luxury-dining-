@@ -283,6 +283,10 @@ export default function DashboardPage() {
                     <span>Book Luxury Experience</span>
                     <ChevronRight size={12} />
                   </Link>
+                  <Link href="/dashboard/offers" className="p-3 border border-gold/5 bg-charcoal/30 flex justify-between items-center hover:border-gold/30 transition-all text-zinc-300 hover:text-gold">
+                    <span>Bespoke Escape Offers</span>
+                    <ChevronRight size={12} />
+                  </Link>
                 </div>
               </div>
             </div>
