@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Edit2 } from "lucide-react";
+import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Trophy, Edit2 } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Section } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
@@ -29,11 +29,12 @@ interface ReservationItem {
 export default function ReservationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"lodging" | "dining" | "spa">("lodging");
+  const [activeTab, setActiveTab] = useState<"lodging" | "dining" | "spa" | "event">("lodging");
   
   const [lodgingReservations, setLodgingReservations] = useState<ReservationItem[]>([]);
   const [diningReservations, setDiningReservations] = useState<ReservationItem[]>([]);
   const [spaReservations, setSpaReservations] = useState<ReservationItem[]>([]);
+  const [eventReservations, setEventReservations] = useState<ReservationItem[]>([]);
   
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -57,6 +58,7 @@ export default function ReservationsPage() {
       setLodgingReservations(allUpcoming.filter((r: any) => r.type === "Lodging"));
       setDiningReservations(allUpcoming.filter((r: any) => r.type === "Dining"));
       setSpaReservations(allUpcoming.filter((r: any) => r.type === "Spa"));
+      setEventReservations(allUpcoming.filter((r: any) => r.type === "Event"));
     }
     setLoading(false);
   }
@@ -104,7 +106,7 @@ export default function ReservationsPage() {
       setActionError("Check-in and Check-out dates must be fully specified.");
       return;
     }
-    if ((type === "Dining" || type === "Spa") && !editCheckIn) {
+    if ((type === "Dining" || type === "Spa" || type === "Event") && !editCheckIn) {
       setActionError("Reservation date must be specified.");
       return;
     }
@@ -116,7 +118,7 @@ export default function ReservationsPage() {
         type === "Lodging" ? editCheckOut : null,
         editGuests,
         (type === "Dining" || type === "Spa") ? editTime : null,
-        type === "Dining" ? editSpecialRequests : null,
+        (type === "Dining" || type === "Event") ? editSpecialRequests : null,
         type === "Dining" ? editDietaryRequirements : null
       );
       if (res.success) {
@@ -143,7 +145,7 @@ Guests Count:      ${res.guests} guests
 Target Date:       ${new Date(res.date).toLocaleDateString("en-GB")}
 ${res.type === "Lodging" ? `Check-out Date:    ${res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}` : `Seating/Session:   ${res.time || "N/A"}`}
 ${res.type === "Dining" && res.dietaryRequirements ? `Dietary Notes:     ${res.dietaryRequirements}` : ""}
-${res.type === "Dining" && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
+${(res.type === "Dining" || res.type === "Event") && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
 Grand Total:       £${res.finalAmount ? res.finalAmount.toFixed(2) : "0.00"}
 Booking Status:    ${res.status.toUpperCase()}
 =========================================
@@ -173,7 +175,9 @@ Thank you for choosing AURELIA.
       ? lodgingReservations
       : activeTab === "dining"
       ? diningReservations
-      : spaReservations;
+      : activeTab === "spa"
+      ? spaReservations
+      : eventReservations;
 
   return (
     <PageWrapper>
@@ -191,7 +195,7 @@ Thank you for choosing AURELIA.
 
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             <div>
-              <Heading subtitle>Stay & Wellness Management</Heading>
+              <Heading subtitle>Stay & Event Management</Heading>
               <Heading as="h1" accent className="tracking-wide text-2xl sm:text-3xl">
                 Reservations Portal
               </Heading>
@@ -223,6 +227,14 @@ Thank you for choosing AURELIA.
               >
                 Wellness Spa
               </button>
+              <button
+                onClick={() => { setActiveTab("event"); cancelEdit(); }}
+                className={`pb-2 transition-all cursor-pointer ${
+                  activeTab === "event" ? "text-gold border-b border-gold font-medium" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Bespoke Events
+              </button>
             </div>
           </div>
 
@@ -245,23 +257,29 @@ Thank you for choosing AURELIA.
                     ? "No Active Suite Bookings"
                     : activeTab === "dining"
                     ? "No Active Table Bookings"
-                    : "No Active Spa Bookings"}
+                    : activeTab === "spa"
+                    ? "No Active Spa Bookings"
+                    : "No Active Event Bookings"}
                 </span>
                 <p className="text-[9px] text-zinc-600 mt-1 font-light font-sans">
                   {activeTab === "lodging"
                     ? "You currently do not have any room stay reservations at AURELIA London."
                     : activeTab === "dining"
                     ? "You currently do not have any dining table reservations logged."
-                    : "You currently do not have any wellness spa treatment sessions booked."}
+                    : activeTab === "spa"
+                    ? "You currently do not have any wellness spa treatment sessions booked."
+                    : "You currently do not have any bespoke events or wedding packages requested."}
                 </p>
                 <div className="mt-6">
-                  <Link href={activeTab === "lodging" ? "/rooms" : activeTab === "dining" ? "/reserve" : "/spa"}>
+                  <Link href={activeTab === "lodging" ? "/rooms" : activeTab === "dining" ? "/reserve" : activeTab === "spa" ? "/spa" : "/events"}>
                     <Button variant="outline" size="sm" className="uppercase tracking-widest font-sans text-[10px]">
                       {activeTab === "lodging"
                         ? "Book a Luxury Suite"
                         : activeTab === "dining"
                         ? "Reserve Dining Table"
-                        : "Book Spa Treatment"}
+                        : activeTab === "spa"
+                        ? "Book Spa Treatment"
+                        : "Plan Special Event"}
                     </Button>
                   </Link>
                 </div>
@@ -282,8 +300,10 @@ Thank you for choosing AURELIA.
                               <BedDouble size={16} />
                             ) : res.type === "Dining" ? (
                               <Coffee size={16} />
-                            ) : (
+                            ) : res.type === "Spa" ? (
                               <Sparkles size={16} />
+                            ) : (
+                              <Trophy size={16} />
                             )}
                           </div>
                           <div>
@@ -309,13 +329,15 @@ Thank you for choosing AURELIA.
                             </div>
                             <div>
                               <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">
-                                {res.type === "Lodging" ? "Check-out" : "Session Time"}
+                                {res.type === "Lodging" ? "Check-out" : res.type === "Event" ? "Scheduled" : "Session Time"}
                               </span>
                               <span className="text-zinc-300 font-medium font-sans font-light">
                                 {res.type === "Lodging"
                                   ? res.checkOutDate
                                     ? new Date(res.checkOutDate).toLocaleDateString("en-GB")
                                     : "N/A"
+                                  : res.type === "Event"
+                                  ? "Full Day"
                                   : res.time || "N/A"}
                               </span>
                             </div>
@@ -324,21 +346,28 @@ Thank you for choosing AURELIA.
                               <span className="text-zinc-300 font-medium font-sans font-light">{res.guests} Guests</span>
                             </div>
                             <div>
-                              <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Estimated Spend</span>
+                              <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">
+                                {res.type === "Event" ? "Base Quote Rate" : "Estimated Spend"}
+                              </span>
                               <span className="text-zinc-300 font-mono font-medium">
-                                {res.finalAmount ? `£${res.finalAmount.toFixed(2)}` : "TBD"}
+                                {res.finalAmount ? `£${res.finalAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "TBD"}
                               </span>
                             </div>
                           </div>
 
-                          {res.type === "Dining" && (res.dietaryRequirements || res.specialRequests) && (
+                          {(res.type === "Dining" || res.type === "Event") && res.specialRequests && (
                             <div className="text-[11px] font-sans font-light space-y-1 text-zinc-400">
-                              {res.dietaryRequirements && (
-                                <p><span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">Dietary:</span> {res.dietaryRequirements}</p>
-                              )}
-                              {res.specialRequests && (
-                                <p><span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">Requests:</span> {res.specialRequests}</p>
-                              )}
+                              <p>
+                                <span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">
+                                  {res.type === "Event" ? "Requirements:" : "Requests:"}
+                                </span> 
+                                {res.specialRequests}
+                              </p>
+                            </div>
+                          )}
+                          {res.type === "Dining" && res.dietaryRequirements && (
+                            <div className="text-[11px] font-sans font-light space-y-1 text-zinc-400">
+                              <p><span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">Dietary:</span> {res.dietaryRequirements}</p>
                             </div>
                           )}
                         </div>
@@ -364,6 +393,16 @@ Thank you for choosing AURELIA.
                                   className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans"
                                   value={editCheckOut}
                                   onChange={(e) => setEditCheckOut(e.target.value)}
+                                />
+                              </div>
+                            ) : res.type === "Event" ? (
+                              <div className="space-y-1">
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Session Duration</label>
+                                <input
+                                  type="text"
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-500 outline-none rounded-sm font-sans cursor-not-allowed"
+                                  value="Full Day Booking"
+                                  disabled
                                 />
                               </div>
                             ) : (
@@ -404,39 +443,52 @@ Thank you for choosing AURELIA.
                             )}
 
                             <div className="space-y-1">
-                              <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Guests</label>
-                              <select
-                                className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
-                                value={editGuests}
-                                onChange={(e) => setEditGuests(parseInt(e.target.value))}
-                              >
-                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                                  <option key={num} value={num}>{num} Guests</option>
-                                ))}
-                              </select>
+                              <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Expected Guests</label>
+                              {res.type === "Event" ? (
+                                <input
+                                  type="number"
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans"
+                                  value={editGuests}
+                                  onChange={(e) => setEditGuests(parseInt(e.target.value) || 2)}
+                                />
+                              ) : (
+                                <select
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
+                                  value={editGuests}
+                                  onChange={(e) => setEditGuests(parseInt(e.target.value))}
+                                >
+                                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                    <option key={num} value={num}>{num} Guests</option>
+                                  ))}
+                                </select>
+                              )}
                             </div>
                           </div>
 
-                          {res.type === "Dining" && (
+                          {(res.type === "Dining" || res.type === "Event") && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans text-left">
-                              <div className="space-y-1">
-                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Dietary Requirements</label>
-                                <textarea
-                                  rows={2}
-                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans resize-none"
-                                  value={editDietaryRequirements}
-                                  onChange={(e) => setEditDietaryRequirements(e.target.value)}
-                                  placeholder="E.g. allergies, vegan..."
-                                />
-                              </div>
-                              <div className="space-y-1">
-                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Special Requests</label>
+                              {res.type === "Dining" && (
+                                <div className="space-y-1">
+                                  <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Dietary Requirements</label>
+                                  <textarea
+                                    rows={2}
+                                    className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans resize-none"
+                                    value={editDietaryRequirements}
+                                    onChange={(e) => setEditDietaryRequirements(e.target.value)}
+                                    placeholder="E.g. allergies, vegan..."
+                                  />
+                                </div>
+                              )}
+                              <div className={`space-y-1 ${res.type === "Event" ? "col-span-2" : ""}`}>
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">
+                                  {res.type === "Event" ? "Event Requirements Notes" : "Special Requests"}
+                                </label>
                                 <textarea
                                   rows={2}
                                   className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans resize-none"
                                   value={editSpecialRequests}
                                   onChange={(e) => setEditSpecialRequests(e.target.value)}
-                                  placeholder="E.g. window table..."
+                                  placeholder={res.type === "Event" ? "E.g. wedding catering choice, seating setup..." : "E.g. window table..."}
                                 />
                               </div>
                             </div>
@@ -454,7 +506,7 @@ Thank you for choosing AURELIA.
                               className="flex items-center gap-1 text-[9px] uppercase tracking-widest py-1.5 font-sans cursor-pointer"
                               onClick={() => mockDownloadPdf(res)}
                             >
-                              <Download size={10} /> Voucher
+                              <Download size={10} /> {res.type === "Event" ? "Quote" : "Voucher"}
                             </Button>
                             {res.status !== "cancelled" && (
                               <>

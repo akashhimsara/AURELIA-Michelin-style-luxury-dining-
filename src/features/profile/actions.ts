@@ -222,11 +222,15 @@ export async function getGuestDashboardData() {
         ? "Dining"
         : res.bookedRoomName?.startsWith("Spa Treatment:")
         ? "Spa"
+        : res.bookedRoomName?.startsWith("Event:")
+        ? "Event"
         : "Lodging",
       name: res.restaurantId
         ? res.restaurant?.name || "Restaurant Table"
         : res.bookedRoomName?.startsWith("Spa Treatment:")
         ? res.bookedRoomName.replace("Spa Treatment: ", "")
+        : res.bookedRoomName?.startsWith("Event:")
+        ? res.bookedRoomName.replace("Event: ", "")
         : res.room?.name || "Suite Stay",
       date: res.date.toISOString(),
       checkOutDate: res.checkOutDate?.toISOString() || null,
