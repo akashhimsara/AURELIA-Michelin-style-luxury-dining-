@@ -40,6 +40,7 @@ model User {
   // Relations
   role         Role?         @relation(fields: [roleId], references: [id], onDelete: SetNull)
   reservations Reservation[]
+  profile      GuestProfile?
 
   @@index([roleId])
 }
@@ -239,4 +240,20 @@ model Spa {
   imageUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model GuestProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  avatarUrl        String?
+  nationality      String?
+  emergencyContact String?
+  pillowType       String?
+  dietaryNotes     String?
+  vipTier          String   @default("Standard Guest")
+  loyaltyPoints    Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
