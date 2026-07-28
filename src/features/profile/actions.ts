@@ -224,6 +224,8 @@ export async function getGuestDashboardData() {
         ? "Spa"
         : res.bookedRoomName?.startsWith("Event:")
         ? "Event"
+        : res.bookedRoomName?.startsWith("Experience:")
+        ? "Experience"
         : "Lodging",
       name: res.restaurantId
         ? res.restaurant?.name || "Restaurant Table"
@@ -231,6 +233,8 @@ export async function getGuestDashboardData() {
         ? res.bookedRoomName.replace("Spa Treatment: ", "")
         : res.bookedRoomName?.startsWith("Event:")
         ? res.bookedRoomName.replace("Event: ", "")
+        : res.bookedRoomName?.startsWith("Experience:")
+        ? res.bookedRoomName.replace("Experience: ", "")
         : res.room?.name || "Suite Stay",
       date: res.date.toISOString(),
       checkOutDate: res.checkOutDate?.toISOString() || null,

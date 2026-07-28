@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Trophy, Edit2 } from "lucide-react";
+import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Trophy, Compass, Edit2 } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Section } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
@@ -29,12 +29,13 @@ interface ReservationItem {
 export default function ReservationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"lodging" | "dining" | "spa" | "event">("lodging");
+  const [activeTab, setActiveTab] = useState<"lodging" | "dining" | "spa" | "event" | "experience">("lodging");
   
   const [lodgingReservations, setLodgingReservations] = useState<ReservationItem[]>([]);
   const [diningReservations, setDiningReservations] = useState<ReservationItem[]>([]);
   const [spaReservations, setSpaReservations] = useState<ReservationItem[]>([]);
   const [eventReservations, setEventReservations] = useState<ReservationItem[]>([]);
+  const [experienceReservations, setExperienceReservations] = useState<ReservationItem[]>([]);
   
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
@@ -59,6 +60,7 @@ export default function ReservationsPage() {
       setDiningReservations(allUpcoming.filter((r: any) => r.type === "Dining"));
       setSpaReservations(allUpcoming.filter((r: any) => r.type === "Spa"));
       setEventReservations(allUpcoming.filter((r: any) => r.type === "Event"));
+      setExperienceReservations(allUpcoming.filter((r: any) => r.type === "Experience"));
     }
     setLoading(false);
   }
@@ -106,7 +108,7 @@ export default function ReservationsPage() {
       setActionError("Check-in and Check-out dates must be fully specified.");
       return;
     }
-    if ((type === "Dining" || type === "Spa" || type === "Event") && !editCheckIn) {
+    if ((type === "Dining" || type === "Spa" || type === "Event" || type === "Experience") && !editCheckIn) {
       setActionError("Reservation date must be specified.");
       return;
     }
@@ -117,8 +119,8 @@ export default function ReservationsPage() {
         editCheckIn,
         type === "Lodging" ? editCheckOut : null,
         editGuests,
-        (type === "Dining" || type === "Spa") ? editTime : null,
-        (type === "Dining" || type === "Event") ? editSpecialRequests : null,
+        (type === "Dining" || type === "Spa" || type === "Experience") ? editTime : null,
+        (type === "Dining" || type === "Event" || type === "Experience") ? editSpecialRequests : null,
         type === "Dining" ? editDietaryRequirements : null
       );
       if (res.success) {
@@ -145,7 +147,7 @@ Guests Count:      ${res.guests} guests
 Target Date:       ${new Date(res.date).toLocaleDateString("en-GB")}
 ${res.type === "Lodging" ? `Check-out Date:    ${res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}` : `Seating/Session:   ${res.time || "N/A"}`}
 ${res.type === "Dining" && res.dietaryRequirements ? `Dietary Notes:     ${res.dietaryRequirements}` : ""}
-${(res.type === "Dining" || res.type === "Event") && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
+${(res.type === "Dining" || res.type === "Event" || res.type === "Experience") && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
 Grand Total:       £${res.finalAmount ? res.finalAmount.toFixed(2) : "0.00"}
 Booking Status:    ${res.status.toUpperCase()}
 =========================================
@@ -177,7 +179,9 @@ Thank you for choosing AURELIA.
       ? diningReservations
       : activeTab === "spa"
       ? spaReservations
-      : eventReservations;
+      : activeTab === "event"
+      ? eventReservations
+      : experienceReservations;
 
   return (
     <PageWrapper>
@@ -195,14 +199,14 @@ Thank you for choosing AURELIA.
 
           <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
             <div>
-              <Heading subtitle>Stay & Event Management</Heading>
+              <Heading subtitle>Stay & Curated Guiding</Heading>
               <Heading as="h1" accent className="tracking-wide text-2xl sm:text-3xl">
                 Reservations Portal
               </Heading>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex border-b border-gold/10 font-sans text-[10px] uppercase tracking-widest gap-4">
+            <div className="flex border-b border-gold/10 font-sans text-[10px] uppercase tracking-widest gap-4 flex-wrap">
               <button
                 onClick={() => { setActiveTab("lodging"); cancelEdit(); }}
                 className={`pb-2 transition-all cursor-pointer ${
@@ -235,6 +239,14 @@ Thank you for choosing AURELIA.
               >
                 Bespoke Events
               </button>
+              <button
+                onClick={() => { setActiveTab("experience"); cancelEdit(); }}
+                className={`pb-2 transition-all cursor-pointer ${
+                  activeTab === "experience" ? "text-gold border-b border-gold font-medium" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Experiences
+              </button>
             </div>
           </div>
 
@@ -259,7 +271,9 @@ Thank you for choosing AURELIA.
                     ? "No Active Table Bookings"
                     : activeTab === "spa"
                     ? "No Active Spa Bookings"
-                    : "No Active Event Bookings"}
+                    : activeTab === "event"
+                    ? "No Active Event Bookings"
+                    : "No Active Experience Bookings"}
                 </span>
                 <p className="text-[9px] text-zinc-600 mt-1 font-light font-sans">
                   {activeTab === "lodging"
@@ -268,10 +282,22 @@ Thank you for choosing AURELIA.
                     ? "You currently do not have any dining table reservations logged."
                     : activeTab === "spa"
                     ? "You currently do not have any wellness spa treatment sessions booked."
-                    : "You currently do not have any bespoke events or wedding packages requested."}
+                    : activeTab === "event"
+                    ? "You currently do not have any bespoke events or wedding packages requested."
+                    : "You currently do not have any curated local experiences or tours booked."}
                 </p>
                 <div className="mt-6">
-                  <Link href={activeTab === "lodging" ? "/rooms" : activeTab === "dining" ? "/reserve" : activeTab === "spa" ? "/spa" : "/events"}>
+                  <Link href={
+                    activeTab === "lodging"
+                      ? "/rooms"
+                      : activeTab === "dining"
+                      ? "/reserve"
+                      : activeTab === "spa"
+                      ? "/spa"
+                      : activeTab === "event"
+                      ? "/events"
+                      : "/experiences"
+                  }>
                     <Button variant="outline" size="sm" className="uppercase tracking-widest font-sans text-[10px]">
                       {activeTab === "lodging"
                         ? "Book a Luxury Suite"
@@ -279,7 +305,9 @@ Thank you for choosing AURELIA.
                         ? "Reserve Dining Table"
                         : activeTab === "spa"
                         ? "Book Spa Treatment"
-                        : "Plan Special Event"}
+                        : activeTab === "event"
+                        ? "Plan Special Event"
+                        : "Book Local Experience"}
                     </Button>
                   </Link>
                 </div>
@@ -302,8 +330,10 @@ Thank you for choosing AURELIA.
                               <Coffee size={16} />
                             ) : res.type === "Spa" ? (
                               <Sparkles size={16} />
-                            ) : (
+                            ) : res.type === "Event" ? (
                               <Trophy size={16} />
+                            ) : (
+                              <Compass size={16} />
                             )}
                           </div>
                           <div>
@@ -355,7 +385,7 @@ Thank you for choosing AURELIA.
                             </div>
                           </div>
 
-                          {(res.type === "Dining" || res.type === "Event") && res.specialRequests && (
+                          {(res.type === "Dining" || res.type === "Event" || res.type === "Experience") && res.specialRequests && (
                             <div className="text-[11px] font-sans font-light space-y-1 text-zinc-400">
                               <p>
                                 <span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">
@@ -408,7 +438,7 @@ Thank you for choosing AURELIA.
                             ) : (
                               <div className="space-y-1">
                                 <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">
-                                  {res.type === "Spa" ? "Session Time" : "New Seating Time"}
+                                  {res.type === "Spa" ? "Session Time" : "Session Hour"}
                                 </label>
                                 <select
                                   className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
@@ -423,6 +453,14 @@ Thank you for choosing AURELIA.
                                       <option value="13:30">13:30 PM</option>
                                       <option value="15:00">15:00 PM</option>
                                       <option value="16:30">16:30 PM</option>
+                                      <option value="18:00">18:00 PM</option>
+                                    </>
+                                  ) : res.type === "Experience" ? (
+                                    <>
+                                      <option value="10:00">10:00 AM</option>
+                                      <option value="12:00">12:00 PM</option>
+                                      <option value="14:00">14:00 PM</option>
+                                      <option value="16:00">16:00 PM</option>
                                       <option value="18:00">18:00 PM</option>
                                     </>
                                   ) : (
@@ -465,7 +503,7 @@ Thank you for choosing AURELIA.
                             </div>
                           </div>
 
-                          {(res.type === "Dining" || res.type === "Event") && (
+                          {(res.type === "Dining" || res.type === "Event" || res.type === "Experience") && (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans text-left">
                               {res.type === "Dining" && (
                                 <div className="space-y-1">
@@ -479,9 +517,9 @@ Thank you for choosing AURELIA.
                                   />
                                 </div>
                               )}
-                              <div className={`space-y-1 ${res.type === "Event" ? "col-span-2" : ""}`}>
+                              <div className={`space-y-1 ${(res.type === "Event" || res.type === "Experience") ? "col-span-2" : ""}`}>
                                 <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">
-                                  {res.type === "Event" ? "Event Requirements Notes" : "Special Requests"}
+                                  {res.type === "Event" ? "Event Requirements Notes" : res.type === "Experience" ? "Experience Notes" : "Special Requests"}
                                 </label>
                                 <textarea
                                   rows={2}

@@ -16,6 +16,8 @@ import {
   Settings,
   Coffee,
   BedDouble,
+  Sparkles,
+  Trophy,
 } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Section } from "@/components/ui/section";
@@ -144,9 +146,16 @@ export default function DashboardPage() {
             <div className="lg:col-span-2 space-y-8">
               {/* Upcoming Reservations */}
               <div className="space-y-4">
-                <h3 className="text-[10px] uppercase tracking-[0.2em] text-gold font-sans font-medium flex items-center gap-2">
-                  <Calendar size={12} /> Upcoming Stays & Bookings
-                </h3>
+                <div className="flex justify-between items-center">
+                  <h3 className="text-[10px] uppercase tracking-[0.2em] text-gold font-sans font-medium flex items-center gap-2">
+                    <Calendar size={12} /> Upcoming Stays & Bookings
+                  </h3>
+                  <Link href="/dashboard/reservations">
+                    <span className="text-[9px] uppercase tracking-widest text-gold hover:text-white transition-colors font-sans font-medium cursor-pointer">
+                      Manage All Bookings &rarr;
+                    </span>
+                  </Link>
+                </div>
 
                 {dashboardData.upcoming.length === 0 ? (
                   <div className="p-8 border border-gold/5 bg-charcoal/10 rounded-sm text-center">
@@ -167,7 +176,17 @@ export default function DashboardPage() {
                       <div key={res.id} className="p-4 border border-gold/10 hover:border-gold/20 bg-charcoal/30 flex justify-between items-center transition-colors">
                         <div className="flex items-center gap-3">
                           <div className="p-2 border border-gold/15 bg-gold/5 text-gold">
-                            {res.type === "Dining" ? <Coffee size={14} /> : <BedDouble size={14} />}
+                            {res.type === "Dining" ? (
+                              <Coffee size={14} />
+                            ) : res.type === "Spa" ? (
+                              <Sparkles size={14} />
+                            ) : res.type === "Event" ? (
+                              <Trophy size={14} />
+                            ) : res.type === "Experience" ? (
+                              <Compass size={14} />
+                            ) : (
+                              <BedDouble size={14} />
+                            )}
                           </div>
                           <div>
                             <h4 className="text-xs font-serif font-light text-zinc-200 tracking-wide">{res.name}</h4>
@@ -205,7 +224,17 @@ export default function DashboardPage() {
                       <div key={res.id} className="p-4 border border-zinc-900 bg-black/40 flex justify-between items-center opacity-60 hover:opacity-100 transition-opacity">
                         <div className="flex items-center gap-3">
                           <div className="p-2 border border-zinc-800 bg-zinc-950 text-zinc-400">
-                            {res.type === "Dining" ? <Coffee size={14} /> : <BedDouble size={14} />}
+                            {res.type === "Dining" ? (
+                              <Coffee size={14} />
+                            ) : res.type === "Spa" ? (
+                              <Sparkles size={14} />
+                            ) : res.type === "Event" ? (
+                              <Trophy size={14} />
+                            ) : res.type === "Experience" ? (
+                              <Compass size={14} />
+                            ) : (
+                              <BedDouble size={14} />
+                            )}
                           </div>
                           <div>
                             <h4 className="text-xs font-serif font-light text-zinc-300 tracking-wide">{res.name}</h4>
@@ -244,6 +273,14 @@ export default function DashboardPage() {
                   </Link>
                   <Link href="/spa" className="p-3 border border-gold/5 bg-charcoal/30 flex justify-between items-center hover:border-gold/30 transition-all text-zinc-300 hover:text-gold">
                     <span>Wellness Therapy Booking</span>
+                    <ChevronRight size={12} />
+                  </Link>
+                  <Link href="/events" className="p-3 border border-gold/5 bg-charcoal/30 flex justify-between items-center hover:border-gold/30 transition-all text-zinc-300 hover:text-gold">
+                    <span>Plan Special Event</span>
+                    <ChevronRight size={12} />
+                  </Link>
+                  <Link href="/experiences" className="p-3 border border-gold/5 bg-charcoal/30 flex justify-between items-center hover:border-gold/30 transition-all text-zinc-300 hover:text-gold">
+                    <span>Book Luxury Experience</span>
                     <ChevronRight size={12} />
                   </Link>
                 </div>
