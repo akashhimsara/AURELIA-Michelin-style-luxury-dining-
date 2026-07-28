@@ -19,9 +19,10 @@ interface RoomCardProps {
   room: RoomItem;
   checkin?: string;
   checkout?: string;
+  priority?: boolean;
 }
 
-export function RoomCard({ room, checkin, checkout }: RoomCardProps) {
+export function RoomCard({ room, checkin, checkout, priority }: RoomCardProps) {
   const bookingUrl = `/reserve?roomId=${room.id}${checkin ? `&date=${checkin}` : ""}`;
 
   return (
@@ -37,7 +38,8 @@ export function RoomCard({ room, checkin, checkout }: RoomCardProps) {
           fill
           sizes="(max-width: 768px) 100vw, 400px"
           className="object-cover transition-transform duration-1000 ease-out group-hover:scale-105"
-          loading="lazy"
+          priority={priority}
+          loading={priority ? undefined : "lazy"}
         />
         <div className="absolute inset-0 bg-gradient-to-t md:bg-gradient-to-r from-black/80 via-black/20 to-transparent z-10 pointer-events-none" />
       </div>

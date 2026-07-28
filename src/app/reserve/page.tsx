@@ -27,12 +27,42 @@ export default async function ReservePage({
   let selectedRoomPrice: number | null = null;
 
   if (roomId) {
-    const room = await db.room.findUnique({
-      where: { id: roomId },
-    });
-    if (room) {
-      selectedRoomName = room.name;
-      selectedRoomPrice = Number(room.pricePerNight);
+    if (roomId.startsWith("fallback-")) {
+      console.log("Fallback ID detected in reserve page.tsx. Skipping database query.");
+      const mockRooms = [
+        { id: "fallback-penthouse", name: "Mayfair Penthouse Suite", pricePerNight: 1200.00 },
+        { id: "fallback-heritage", name: "Deluxe Heritage Chamber", pricePerNight: 450.00 },
+        { id: "fallback-presidential", name: "Ocean Presidential Villa", pricePerNight: 850.00 },
+        { id: "fallback-ocean", name: "Ocean Presidential Villa", pricePerNight: 850.00 },
+      ];
+      const fallbackRoom = mockRooms.find((r) => r.id === roomId);
+      if (fallbackRoom) {
+        selectedRoomName = fallbackRoom.name;
+        selectedRoomPrice = fallbackRoom.pricePerNight;
+      }
+    } else {
+      try {
+        const room = await db.room.findUnique({
+          where: { id: roomId },
+        });
+        if (room) {
+          selectedRoomName = room.name;
+          selectedRoomPrice = Number(room.pricePerNight);
+        }
+      } catch (error) {
+        console.warn("Database connection issue inside reserve page.tsx. Falling back to default mock room lookup.", error);
+        const mockRooms = [
+          { id: "fallback-penthouse", name: "Mayfair Penthouse Suite", pricePerNight: 1200.00 },
+          { id: "fallback-heritage", name: "Deluxe Heritage Chamber", pricePerNight: 450.00 },
+          { id: "fallback-presidential", name: "Ocean Presidential Villa", pricePerNight: 850.00 },
+          { id: "fallback-ocean", name: "Ocean Presidential Villa", pricePerNight: 850.00 },
+        ];
+        const fallbackRoom = mockRooms.find((r) => r.id === roomId);
+        if (fallbackRoom) {
+          selectedRoomName = fallbackRoom.name;
+          selectedRoomPrice = fallbackRoom.pricePerNight;
+        }
+      }
     }
   }
 

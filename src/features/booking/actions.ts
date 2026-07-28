@@ -1,10 +1,40 @@
 "use server";
 
 import { db } from "@/lib/db";
+import { getCurrentUser } from "@/features/auth/utils";
 import { reservationSchema, ReservationFormInput } from "./schema";
+import { revalidatePath } from "next/cache";
+
+export async function checkRoomAvailability(roomId: string, checkIn: string, checkOut: string, excludeReservationId?: string) {
+  const checkInDate = new Date(checkIn);
+  const checkOutDate = new Date(checkOut);
+
+  const overlap = await db.reservation.findFirst({
+    where: {
+      roomId,
+      status: { not: "cancelled" },
+      id: excludeReservationId ? { not: excludeReservationId } : undefined,
+      OR: [
+        {
+          date: { lte: checkInDate },
+          checkOutDate: { gt: checkInDate },
+        },
+        {
+          date: { lt: checkOutDate },
+          checkOutDate: { gte: checkOutDate },
+        },
+        {
+          date: { gte: checkInDate },
+          checkOutDate: { lte: checkOutDate },
+        },
+      ],
+    },
+  });
+
+  return !overlap;
+}
 
 export async function createReservation(data: ReservationFormInput) {
-  // 1. Re-validate parameters on the server side
   const validated = reservationSchema.safeParse(data);
   if (!validated.success) {
     return {
@@ -13,40 +43,72 @@ export async function createReservation(data: ReservationFormInput) {
     };
   }
 
-  const { name, email, phone, date, time, guests, roomId, restaurantId, promoCode } = validated.data;
+  const {
+    name,
+    email,
+    phone,
+    date,
+    checkOutDate,
+    time,
+    guests,
+    children = 0,
+    roomId,
+    restaurantId,
+    promoCode,
+    specialRequests,
+    dietaryRequirements,
+  } = validated.data;
+  
   const sanitizedEmail = email.toLowerCase().trim();
 
   try {
-    // 2. Resolve or create CRM Guest User profile
-    let user = await db.user.findUnique({
-      where: { email: sanitizedEmail },
-    });
+    // Determine active user context
+    const currentUser = await getCurrentUser();
+    let userId = currentUser?.userId || null;
 
-    if (!user) {
-      user = await db.user.create({
-        data: {
-          email: sanitizedEmail,
-          name,
-          phone: phone || null,
-        },
+    if (!userId) {
+      // Find or create guest registry in CRM database
+      let user = await db.user.findUnique({
+        where: { email: sanitizedEmail },
       });
+
+      if (!user) {
+        user = await db.user.create({
+          data: {
+            email: sanitizedEmail,
+            name,
+            phone: phone || null,
+          },
+        });
+      }
+      userId = user.id;
     }
 
     let bookedRoomName: string | null = null;
     let roomRateAtBooking: number | null = null;
     let finalAmount: number | null = null;
+    let nightsCount = 1;
 
-    // 3. Resolve active promo discounts
-    let discount = 0;
+    // Apply promo code logic
+    let discountRate = 0;
     if (promoCode) {
       const code = promoCode.toUpperCase().trim();
-      if (code === "ROYAL15") discount = 0.15;
-      else if (code === "MICHELIN10") discount = 0.10;
-      else if (code === "SANCTUARY20") discount = 0.20;
+      if (code === "ROYAL15") discountRate = 0.15;
+      else if (code === "MICHELIN10") discountRate = 0.10;
+      else if (code === "SANCTUARY20") discountRate = 0.20;
     }
 
-    // 4. If Room booking, fetch the details to freeze historical rates
-    if (roomId) {
+    // Process Suite Stay Booking
+    if (roomId && checkOutDate) {
+      // 1. Double check room date availability bounds
+      const isAvailable = await checkRoomAvailability(roomId, date, checkOutDate);
+      if (!isAvailable) {
+        return {
+          success: false,
+          message: "The selected room has already been reserved for these dates. Please try another range.",
+        };
+      }
+
       const room = await db.room.findUnique({
         where: { id: roomId },
       });
@@ -56,14 +118,23 @@ export async function createReservation(data: ReservationFormInput) {
           message: "The requested accommodation suite could not be found.",
         };
       }
+
+      const ms = new Date(checkOutDate).getTime() - new Date(date).getTime();
+      nightsCount = Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)));
+
       bookedRoomName = room.name;
       roomRateAtBooking = Number(room.pricePerNight);
-      
-      // Apply promo discounts to room rate billings
-      finalAmount = roomRateAtBooking * (1 - discount);
+
+      // Price calculation: nights * rate per night - discount + 12% VAT + 5% service charge
+      const baseTotal = roomRateAtBooking * nightsCount;
+      const discountVal = baseTotal * discountRate;
+      const taxable = baseTotal - discountVal;
+      const tax = taxable * 0.12;
+      const service = taxable * 0.05;
+      finalAmount = taxable + tax + service;
     }
 
-    // 5. Resolve default restaurant branch for dining bookings
+    // Dining table branch lookup logic
     let resolvedRestaurantId = restaurantId;
     if (!roomId && !resolvedRestaurantId) {
       let restaurant = await db.restaurant.findFirst();
@@ -80,75 +151,165 @@ export async function createReservation(data: ReservationFormInput) {
       resolvedRestaurantId = restaurant.id;
     }
 
-    // 6. Persist in database using Prisma with historical snapshots and CRM links
     const reservation = await db.reservation.create({
       data: {
         name,
         email: sanitizedEmail,
         phone,
         date: new Date(date),
+        checkOutDate: checkOutDate ? new Date(checkOutDate) : null,
         time: time || null,
         guests,
+        children,
         restaurantId: resolvedRestaurantId || null,
         roomId: roomId || null,
-        userId: user.id, // Linked to guest CRM profile
+        userId,
         roomRateAtBooking: roomRateAtBooking ? roomRateAtBooking : null,
         bookedRoomName: bookedRoomName || null,
         finalAmount: finalAmount ? finalAmount : null,
+        specialRequests: specialRequests || null,
+        dietaryRequirements: dietaryRequirements || null,
       },
     });
 
-    // 7. Mock dispatching transactional confirmation email
-    const bookingType = roomId ? "Accommodation" : "Dining";
-    const detailLabel = roomId 
-      ? `Suite: ${bookedRoomName} (Rate: £${roomRateAtBooking}/night, Discount Applied: ${discount * 100}%, Paid: £${finalAmount})` 
-      : `Seating Time: ${time}`;
-
-    console.log(`
-============================================================
-[MOCK MAIL SERVICE] Sending Transactional Confirmation Email
-To: ${sanitizedEmail}
-Subject: AURELIA London - ${bookingType} Confirmed (${reservation.id.slice(0, 8).toUpperCase()})
-------------------------------------------------------------
-Dear ${name},
-
-We are delighted to confirm your ${bookingType.toLowerCase()} arrangement at AURELIA London.
-
-Details of your booking:
-- Guests: ${guests} guests
-- Date: ${new Date(date).toLocaleDateString("en-GB", {
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    })}
-- ${detailLabel}
-- Booking Code: ${reservation.id.slice(0, 8).toUpperCase()}
-
-${roomId ? "Our check-in begins at 15:00 PM." : "Our dress code is smart elegant."} We look forward to welcoming you.
-
-Warmest regards,
-The AURELIA Guest Relations Team
-============================================================
-    `);
-
+    revalidatePath("/dashboard");
     return {
       success: true,
       reservation: {
         id: reservation.id,
         name: reservation.name,
         date: reservation.date.toISOString(),
+        checkOutDate: reservation.checkOutDate?.toISOString() || null,
         time: reservation.time,
         guests: reservation.guests,
+        children: reservation.children,
         bookedRoomName: reservation.bookedRoomName,
         roomRateAtBooking: reservation.roomRateAtBooking ? Number(reservation.roomRateAtBooking) : null,
+        finalAmount: reservation.finalAmount ? Number(reservation.finalAmount) : null,
       },
     };
   } catch (error) {
-    console.error("Database write error:", error);
+    console.error("Create reservation error:", error);
     return {
       success: false,
-      message: "An error occurred while finalizing your reservation.",
+      message: "An error occurred while establishing your reservation. Try again later.",
     };
+  }
+}
+
+export async function cancelReservation(reservationId: string) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    const reservation = await db.reservation.findUnique({
+      where: { id: reservationId },
+    });
+
+    if (!reservation || reservation.userId !== currentUser.userId) {
+      return { success: false, message: "Reservation record could not be found." };
+    }
+
+    await db.reservation.update({
+      where: { id: reservationId },
+      data: {
+        status: "cancelled",
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/reservations");
+    return { success: true, message: "Reservation cancelled successfully." };
+  } catch (error) {
+    console.error("Cancel reservation error:", error);
+    return { success: false, message: "Could not process stay cancellation. Try again." };
+  }
+}
+
+export async function modifyReservation(
+  reservationId: string,
+  newCheckIn: string,
+  newCheckOut: string | null,
+  guests: number,
+  newTime?: string | null,
+  specialRequests?: string | null,
+  dietaryRequirements?: string | null
+) {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) {
+    return { success: false, message: "Unauthorized" };
+  }
+
+  try {
+    const reservation = await db.reservation.findUnique({
+      where: { id: reservationId },
+    });
+
+    if (!reservation || reservation.userId !== currentUser.userId) {
+      return { success: false, message: "Reservation record could not be found." };
+    }
+
+    if (reservation.roomId && newCheckOut) {
+      // Check date availability conflicts excluding current reservation
+      const isAvailable = await checkRoomAvailability(reservation.roomId, newCheckIn, newCheckOut, reservationId);
+      if (!isAvailable) {
+        return {
+          success: false,
+          message: "The requested accommodation suite is occupied during the new date range.",
+        };
+      }
+
+      // Calculate new rates based on new stay length
+      const ms = new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime();
+      const nightsCount = Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)));
+      const rate = Number(reservation.roomRateAtBooking || 0);
+
+      // Re-apply same discount if existed
+      let discountRate = 0;
+      if (reservation.finalAmount && reservation.roomRateAtBooking) {
+        const originalNights = Math.max(1, Math.round((new Date(reservation.checkOutDate || "").getTime() - new Date(reservation.date).getTime()) / (1000 * 60 * 60 * 24)));
+        const originalBase = rate * originalNights;
+        const discountVal = originalBase - (Number(reservation.finalAmount) / 1.17); // reverse VAT/service calculation roughly
+        discountRate = Math.max(0, Math.min(0.5, discountVal / originalBase));
+      }
+
+      const baseTotal = rate * nightsCount;
+      const discountAmount = baseTotal * discountRate;
+      const taxable = baseTotal - discountAmount;
+      const tax = taxable * 0.12;
+      const service = taxable * 0.05;
+      const finalAmount = taxable + tax + service;
+
+      await db.reservation.update({
+        where: { id: reservationId },
+        data: {
+          date: new Date(newCheckIn),
+          checkOutDate: new Date(newCheckOut),
+          guests,
+          finalAmount,
+        },
+      });
+    } else {
+      // Dining modification
+      await db.reservation.update({
+        where: { id: reservationId },
+        data: {
+          date: new Date(newCheckIn),
+          time: newTime || reservation.time,
+          guests,
+          specialRequests: specialRequests !== undefined ? specialRequests : reservation.specialRequests,
+          dietaryRequirements: dietaryRequirements !== undefined ? dietaryRequirements : reservation.dietaryRequirements,
+        },
+      });
+    }
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/reservations");
+    return { success: true, message: "Your booking modifications have been successfully updated." };
+  } catch (error) {
+    console.error("Modify reservation error:", error);
+    return { success: false, message: "Could not save booking modifications. Try again." };
   }
 }

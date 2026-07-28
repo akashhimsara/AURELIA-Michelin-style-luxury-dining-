@@ -27,7 +27,6 @@ export function Navbar() {
     { label: "Gallery", href: "/gallery" },
     { label: "Events", href: "/events" },
     { label: "Offers", href: "/offers" },
-    { label: "Admin Console", href: "/admin" },
   ];
 
   return (

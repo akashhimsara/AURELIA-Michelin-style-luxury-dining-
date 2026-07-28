@@ -1,12 +1,16 @@
-import React from "react";
+"use client";
+
+import React, { useState } from "react";
 import Image from "next/image";
 import { Container } from "@/components/ui/container";
 import { Section } from "@/components/ui/section";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { AnimationWrapper } from "@/components/ui/animation-wrapper";
+import { StoryModal } from "./story-modal";
 
 export function About() {
+  const [isStoryOpen, setIsStoryOpen] = useState(false);
   return (
     <Section id="story" padding="md" className="bg-black border-t border-gold/5 relative overflow-hidden">
       {/* Ambient background gold leaf lighting leak */}
@@ -53,7 +57,7 @@ export function About() {
 
             {/* Story CTA */}
             <AnimationWrapper delay={0.8} className="pt-4">
-              <Button variant="outline">
+              <Button variant="outline" onClick={() => setIsStoryOpen(true)}>
                 Explore the Story
               </Button>
             </AnimationWrapper>
@@ -75,7 +79,7 @@ export function About() {
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 400px"
                     className="object-cover transition-transform duration-1000 ease-out hover:scale-105"
-                    priority={false}
+                    priority={true}
                   />
                 </div>
               </div>
@@ -84,6 +88,8 @@ export function About() {
 
         </div>
       </Container>
+
+      <StoryModal isOpen={isStoryOpen} onClose={() => setIsStoryOpen(false)} />
     </Section>
   );
 }

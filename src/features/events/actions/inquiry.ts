@@ -1,7 +1,8 @@
 "use server";
 
 import { db } from "@/lib/db";
-import { eventInquirySchema, EventInquiryInput } from "../schema";
+import { eventInquirySchema, EventInquiryInput, eventLimits } from "../schema";
+import { revalidatePath } from "next/cache";
 
 export async function createEventInquiry(data: EventInquiryInput) {
   const validated = eventInquirySchema.safeParse(data);
@@ -13,19 +14,56 @@ export async function createEventInquiry(data: EventInquiryInput) {
   }
 
   const { name, email, phone, eventType, guests, date, message } = validated.data;
+  const sanitizedEmail = email.toLowerCase().trim();
 
   try {
-    const formattedSubject = `Event Inquiry: ${eventType.toUpperCase()} (${guests} Guests) - Date: ${date}`;
-    const formattedMessage = `Phone: ${phone}\nPreferred Date: ${date}\nExpected Guests: ${guests}\n\nRequirements:\n${message}`;
+    // 1. CRM Lead Resolution
+    let user = await db.user.findUnique({
+      where: { email: sanitizedEmail },
+    });
 
-    // Store inside Message database schema
+    if (!user) {
+      user = await db.user.create({
+        data: {
+          email: sanitizedEmail,
+          name,
+          phone: phone || null,
+        },
+      });
+    }
+
+    const limit = eventLimits[eventType];
+    const formattedSubject = `Event Inquiry: ${eventType.toUpperCase()} (${guests} Guests) - Date: ${date}`;
+    const formattedMessage = `Phone: ${phone}\nVenue Pavilion: ${limit.label}\nPreferred Date: ${date}\nExpected Guests: ${guests}\n\nRequirements:\n${message}`;
+
+    // 2. Store inside Message database schema
     const inquiry = await db.message.create({
       data: {
         name,
-        email,
+        email: sanitizedEmail,
         subject: formattedSubject,
         message: formattedMessage,
         status: "unread",
+      },
+    });
+
+    // 3. Create a Reservation log referencing Event to contribute to Guest CRM LTV
+    // Est. Billing = Package base spend
+    let finalAmount = 4000;
+    if (eventType === "wedding") finalAmount = 12000;
+    else if (eventType === "corporate") finalAmount = 8000;
+
+    await db.reservation.create({
+      data: {
+        name,
+        email: sanitizedEmail,
+        phone,
+        date: new Date(date),
+        guests,
+        userId: user.id,
+        bookedRoomName: `Event: ${limit.label} (${eventType.toUpperCase()})`,
+        finalAmount: finalAmount,
+        specialRequests: message || null,
       },
     });
 
@@ -40,14 +78,17 @@ New Event Request Received:
 Guest: ${name}
 Phone: ${phone}
 Event Type: ${eventType}
+Venue: ${limit.label}
 Expected Party Size: ${guests} guests
 Target Schedule: ${date}
+Est. Event Spend: £${finalAmount} (LTV Linked)
 
 Message detail:
 ${message}
 ============================================================
     `);
 
+    revalidatePath("/dashboard");
     return {
       success: true,
       inquiry: {

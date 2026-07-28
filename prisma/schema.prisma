@@ -28,9 +28,19 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Auth fields
+  passwordHash         String?
+  emailVerified        DateTime?
+  verificationToken    String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  socialProvider       String?
+  socialId             String?
+
   // Relations
   role         Role?         @relation(fields: [roleId], references: [id], onDelete: SetNull)
   reservations Reservation[]
+  profile      GuestProfile?
 
   @@index([roleId])
 }
@@ -93,9 +103,13 @@ model Reservation {
   email               String
   phone               String
   date                DateTime
+  checkOutDate        DateTime?
   time                String?     // Optional (seating slots use time, rooms use dates)
   guests              Int
+  children            Int         @default(0)
   status              String      @default("pending") // pending, confirmed, cancelled
+  specialRequests     String?
+  dietaryRequirements String?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
 
@@ -230,4 +244,20 @@ model Spa {
   imageUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+model GuestProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  avatarUrl        String?
+  nationality      String?
+  emergencyContact String?
+  pillowType       String?
+  dietaryNotes     String?
+  vipTier          String   @default("Standard Guest")
+  loyaltyPoints    Int      @default(0)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
