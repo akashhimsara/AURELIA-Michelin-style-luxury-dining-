@@ -28,6 +28,15 @@ model User {
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
+  // Auth fields
+  passwordHash         String?
+  emailVerified        DateTime?
+  verificationToken    String?
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  socialProvider       String?
+  socialId             String?
+
   // Relations
   role         Role?         @relation(fields: [roleId], references: [id], onDelete: SetNull)
   reservations Reservation[]
