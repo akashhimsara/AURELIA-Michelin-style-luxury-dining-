@@ -5,6 +5,7 @@ import { getCurrentUser } from "@/features/auth/utils";
 import { reservationSchema, ReservationFormInput } from "./schema";
 import { revalidatePath } from "next/cache";
 import { stripe } from "@/lib/stripe";
+import { sendBookingConfirmation, sendModificationAlert, sendCancellationNotice } from "@/lib/resend";
 
 export async function createStripeSessionForReservation(reservationId: string) {
   try {
@@ -232,6 +233,15 @@ export async function createReservation(data: ReservationFormInput) {
       }
     }
 
+    // Dispatch booking confirmation email via Resend
+    await sendBookingConfirmation(reservation.email, reservation.name, {
+      id: reservation.id,
+      type: reservation.roomId ? "Lodging" : "Dining",
+      date: reservation.date.toISOString(),
+      guests: reservation.guests,
+      bookedRoomName: reservation.bookedRoomName,
+    });
+
     revalidatePath("/dashboard");
     return {
       success: true,
@@ -278,6 +288,14 @@ export async function cancelReservation(reservationId: string) {
       data: {
         status: "cancelled",
       },
+    });
+
+    // Send email cancellation notice via Resend
+    await sendCancellationNotice(reservation.email, reservation.name, {
+      id: reservation.id,
+      type: reservation.roomId ? "Lodging" : "Dining",
+      date: reservation.date.toISOString(),
+      bookedRoomName: reservation.bookedRoomName,
     });
 
     revalidatePath("/dashboard");
@@ -361,6 +379,15 @@ export async function modifyReservation(
         },
       });
     }
+
+    // Send email modification notice via Resend
+    await sendModificationAlert(reservation.email, reservation.name, {
+      id: reservation.id,
+      type: reservation.roomId ? "Lodging" : "Dining",
+      date: new Date(newCheckIn).toISOString(),
+      guests,
+      bookedRoomName: reservation.bookedRoomName,
+    });
 
     revalidatePath("/dashboard");
     revalidatePath("/dashboard/reservations");

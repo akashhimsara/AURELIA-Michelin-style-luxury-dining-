@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { registerSchema, loginSchema, RegisterInput, LoginInput } from "./schema";
 import { encryptPassword, comparePassword, signSessionToken, setSessionCookie, clearSessionCookie } from "./utils";
 import crypto from "crypto";
+import { sendWelcomeEmail } from "@/lib/resend";
 
 export async function registerGuest(data: RegisterInput) {
   const validated = registerSchema.safeParse(data);
@@ -53,6 +54,9 @@ export async function registerGuest(data: RegisterInput) {
         verificationToken,
       },
     });
+
+    // Dispatch welcome email via Resend
+    await sendWelcomeEmail(user.email, user.name);
 
     // Mock Email Verification dispatch
     console.log(`
