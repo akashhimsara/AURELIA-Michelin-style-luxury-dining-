@@ -3,14 +3,14 @@
 import React, { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Trophy, Compass, Edit2 } from "lucide-react";
+import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Sparkles, Trophy, Compass, Edit2, CreditCard } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Section } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
 import { Heading } from "@/components/ui/heading";
 import { Button } from "@/components/ui/button";
 import { getGuestDashboardData } from "@/features/profile/actions";
-import { cancelReservation, modifyReservation } from "@/features/booking/actions";
+import { cancelReservation, modifyReservation, createStripeSessionForReservation } from "@/features/booking/actions";
 
 interface ReservationItem {
   id: string;
@@ -24,6 +24,8 @@ interface ReservationItem {
   finalAmount?: number | null;
   specialRequests?: string | null;
   dietaryRequirements?: string | null;
+  paymentStatus?: string | null;
+  stripeSessionId?: string | null;
 }
 
 export default function ReservationsPage() {
@@ -38,6 +40,7 @@ export default function ReservationsPage() {
   const [experienceReservations, setExperienceReservations] = useState<ReservationItem[]>([]);
   
   const [isPending, startTransition] = useTransition();
+  const [payingId, setPayingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
 
@@ -81,6 +84,21 @@ export default function ReservationsPage() {
         loadData();
       } else {
         setActionError(res.message);
+      }
+    });
+  };
+
+  const handlePayNow = (id: string) => {
+    setActionError(null);
+    setActionSuccess(null);
+    setPayingId(id);
+    startTransition(async () => {
+      const res = await createStripeSessionForReservation(id);
+      setPayingId(null);
+      if (res.success && res.checkoutUrl) {
+        window.location.href = res.checkoutUrl;
+      } else {
+        setActionError(res.message || "Failed to initialize Stripe payment. Try again.");
       }
     });
   };
@@ -135,10 +153,11 @@ export default function ReservationsPage() {
 
   const mockDownloadPdf = (res: ReservationItem) => {
     const code = res.id.slice(0, 8).toUpperCase();
+    const isPaid = res.paymentStatus === "paid";
     const content = `
 =========================================
      AURELIA LUXURY HOTELS & RESORTS
-        RESERVATION CONFIRMATION
+        ${isPaid ? "PAYMENT INVOICE & RECEIPT" : "RESERVATION CONFIRMATION"}
 =========================================
 Voucher Reference: AUR-${code}
 Arrangement Class: ${res.type.toUpperCase()}
@@ -149,6 +168,7 @@ ${res.type === "Lodging" ? `Check-out Date:    ${res.checkOutDate ? new Date(res
 ${res.type === "Dining" && res.dietaryRequirements ? `Dietary Notes:     ${res.dietaryRequirements}` : ""}
 ${(res.type === "Dining" || res.type === "Event" || res.type === "Experience") && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
 Grand Total:       £${res.finalAmount ? res.finalAmount.toFixed(2) : "0.00"}
+Payment Status:    ${isPaid ? "PAID (STRIPE GATEWAY SECURED)" : "UNPAID"}
 Booking Status:    ${res.status.toUpperCase()}
 =========================================
 Thank you for choosing AURELIA.
@@ -158,7 +178,7 @@ Thank you for choosing AURELIA.
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Aurelia_${res.type}_Confirmation_${code}.txt`;
+    link.download = `Aurelia_${isPaid ? "Invoice" : res.type}_AUR_${code}.txt`;
     link.click();
   };
 
@@ -317,6 +337,8 @@ Thank you for choosing AURELIA.
                 {currentList.map((res) => {
                   const isEditing = editingId === res.id;
                   const code = res.id.slice(0, 8).toUpperCase();
+                  const isPaid = res.paymentStatus === "paid";
+                  const isCancelled = res.status === "cancelled";
 
                   return (
                     <div key={res.id} className="p-5 border border-gold/10 bg-charcoal/40 relative rounded-sm luxury-glass flex flex-col gap-4">
@@ -342,9 +364,20 @@ Thank you for choosing AURELIA.
                           </div>
                         </div>
 
-                        <span className="px-2 py-0.5 text-[8px] uppercase tracking-widest font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-500/20">
-                          {res.status}
-                        </span>
+                        <div className="flex gap-2">
+                          {res.finalAmount && res.finalAmount > 0 && (
+                            <span className={`px-2 py-0.5 text-[8px] uppercase tracking-widest font-semibold border ${
+                              isPaid
+                                ? "bg-emerald-950/40 text-emerald-400 border-emerald-500/20"
+                                : "bg-amber-950/40 text-amber-400 border-amber-500/20"
+                            }`}>
+                              {isPaid ? "Paid" : "Unpaid"}
+                            </span>
+                          )}
+                          <span className="px-2 py-0.5 text-[8px] uppercase tracking-widest font-semibold bg-emerald-950/40 text-emerald-400 border border-emerald-500/20">
+                            {res.status}
+                          </span>
+                        </div>
                       </div>
 
                       {/* Detail row */}
@@ -538,22 +571,39 @@ Thank you for choosing AURELIA.
                       <div className="flex flex-wrap gap-2 justify-end">
                         {!isEditing ? (
                           <>
+                            {res.finalAmount && res.finalAmount > 0 && !isPaid && !isCancelled && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                className="flex items-center gap-1 text-[9px] uppercase tracking-widest py-1.5 font-sans cursor-pointer bg-gold text-black hover:bg-white"
+                                onClick={() => handlePayNow(res.id)}
+                                disabled={isPending || payingId === res.id}
+                              >
+                                {payingId === res.id ? (
+                                  <RefreshCw size={10} className="animate-spin" />
+                                ) : (
+                                  <>
+                                    <CreditCard size={10} /> Pay Now
+                                  </>
+                                )}
+                              </Button>
+                            )}
                             <Button
                               variant="outline"
                               size="sm"
                               className="flex items-center gap-1 text-[9px] uppercase tracking-widest py-1.5 font-sans cursor-pointer"
                               onClick={() => mockDownloadPdf(res)}
                             >
-                              <Download size={10} /> {res.type === "Event" ? "Quote" : "Voucher"}
+                              <Download size={10} /> {isPaid ? "Invoice" : res.type === "Event" ? "Quote" : "Voucher"}
                             </Button>
-                            {res.status !== "cancelled" && (
+                            {!isCancelled && (
                               <>
                                 <Button
                                   variant="outline"
                                   size="sm"
                                   className="flex items-center gap-1 text-[9px] uppercase tracking-widest py-1.5 text-zinc-300 hover:text-gold font-sans cursor-pointer"
                                   onClick={() => startEdit(res)}
-                                  disabled={isPending}
+                                  disabled={isPending || payingId === res.id}
                                 >
                                   <Edit2 size={10} /> Modify
                                 </Button>
@@ -562,7 +612,7 @@ Thank you for choosing AURELIA.
                                   size="sm"
                                   className="flex items-center gap-1 text-[9px] uppercase tracking-widest py-1.5 text-red-400 border-red-500/20 hover:bg-red-950/20 font-sans cursor-pointer"
                                   onClick={() => handleCancel(res.id)}
-                                  disabled={isPending}
+                                  disabled={isPending || payingId === res.id}
                                 >
                                   <XCircle size={10} /> Cancel
                                 </Button>

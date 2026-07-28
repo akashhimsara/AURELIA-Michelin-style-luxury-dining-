@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db";
 import { spaBookingSchema, SpaBookingInput } from "../schema";
+import { createStripeSessionForReservation } from "@/features/booking/actions";
 
 export async function createSpaInquiry(data: SpaBookingInput) {
   const validated = spaBookingSchema.safeParse(data);
@@ -60,7 +61,7 @@ export async function createSpaInquiry(data: SpaBookingInput) {
     // 4. Create a Reservation log referencing Spa to contribute to Guest CRM LTV
     const finalAmount = Number(therapy.price) * guests;
 
-    await db.reservation.create({
+    const reservation = await db.reservation.create({
       data: {
         name,
         email: sanitizedEmail,
@@ -71,8 +72,18 @@ export async function createSpaInquiry(data: SpaBookingInput) {
         userId: user.id,
         bookedRoomName: `Spa Treatment: ${therapy.name}`,
         finalAmount: finalAmount,
+        specialRequests: notes || null,
       },
     });
+
+    // Generate Stripe session URL for card capture
+    let checkoutUrl: string | null = null;
+    if (finalAmount > 0) {
+      const stripeRes = await createStripeSessionForReservation(reservation.id);
+      if (stripeRes.success) {
+        checkoutUrl = stripeRes.checkoutUrl || null;
+      }
+    }
 
     console.log(`
 ============================================================
@@ -96,6 +107,7 @@ ${notes || "None"}
 
     return {
       success: true,
+      checkoutUrl,
       inquiry: {
         id: inquiry.id,
         name: inquiry.name,

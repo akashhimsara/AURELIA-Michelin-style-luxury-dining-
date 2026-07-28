@@ -110,8 +110,12 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
       try {
         const response = await createReservation(data);
         if (response.success) {
-          setSuccessData(response.reservation);
-          reset();
+          if (response.checkoutUrl) {
+            window.location.href = response.checkoutUrl;
+          } else {
+            setSuccessData(response.reservation);
+            reset();
+          }
         } else {
           setServerError(response.message || "Invalid input data. Please check your fields.");
         }

@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { experienceBookingSchema, ExperienceBookingInput, experiencesCatalog } from "../schema";
 import { revalidatePath } from "next/cache";
+import { createStripeSessionForReservation } from "@/features/booking/actions";
 
 export async function createExperienceBooking(data: ExperienceBookingInput) {
   const validated = experienceBookingSchema.safeParse(data);
@@ -65,6 +66,15 @@ export async function createExperienceBooking(data: ExperienceBookingInput) {
       },
     });
 
+    // Generate Stripe session URL for card capture
+    let checkoutUrl: string | null = null;
+    if (finalAmount > 0) {
+      const stripeRes = await createStripeSessionForReservation(reservation.id);
+      if (stripeRes.success) {
+        checkoutUrl = stripeRes.checkoutUrl || null;
+      }
+    }
+
     console.log(`
 ============================================================
 [MOCK MAIL SERVICE] Dispatched Experience Booking Alert
@@ -88,6 +98,7 @@ ${notes || "None"}
     revalidatePath("/dashboard");
     return {
       success: true,
+      checkoutUrl,
       reservation: {
         id: reservation.id,
         name: reservation.name,

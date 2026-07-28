@@ -4,6 +4,59 @@ import { db } from "@/lib/db";
 import { getCurrentUser } from "@/features/auth/utils";
 import { reservationSchema, ReservationFormInput } from "./schema";
 import { revalidatePath } from "next/cache";
+import { stripe } from "@/lib/stripe";
+
+export async function createStripeSessionForReservation(reservationId: string) {
+  try {
+    const reservation = await db.reservation.findUnique({
+      where: { id: reservationId },
+    });
+
+    if (!reservation || !reservation.finalAmount) {
+      return { success: false, message: "Reservation record or billing details not found." };
+    }
+
+    const amount = Number(reservation.finalAmount);
+    if (amount <= 0) {
+      return { success: false, message: "Reservation requires no advance card billing." };
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      payment_method_types: ["card"],
+      line_items: [
+        {
+          price_data: {
+            currency: "gbp",
+            product_data: {
+              name: reservation.bookedRoomName || `Aurelia Reservation Arrangement`,
+              description: `Aurelia London Booking Voucher: AUR-${reservation.id.slice(0, 8).toUpperCase()}`,
+            },
+            unit_amount: Math.round(amount * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      mode: "payment",
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/reservations?status=success&session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/dashboard/reservations?status=cancel`,
+      metadata: {
+        reservationId: reservation.id,
+      },
+    });
+
+    await db.reservation.update({
+      where: { id: reservation.id },
+      data: {
+        stripeSessionId: session.id,
+      },
+    });
+
+    return { success: true, checkoutUrl: session.url };
+  } catch (error) {
+    console.error("Stripe session creation error:", error);
+    return { success: false, message: "Could not establish secure payment gateway session. Try again." };
+  }
+}
 
 export async function checkRoomAvailability(roomId: string, checkIn: string, checkOut: string, excludeReservationId?: string) {
   const checkInDate = new Date(checkIn);
@@ -100,7 +153,6 @@ export async function createReservation(data: ReservationFormInput) {
 
     // Process Suite Stay Booking
     if (roomId && checkOutDate) {
-      // 1. Double check room date availability bounds
       const isAvailable = await checkRoomAvailability(roomId, date, checkOutDate);
       if (!isAvailable) {
         return {
@@ -125,7 +177,6 @@ export async function createReservation(data: ReservationFormInput) {
       bookedRoomName = room.name;
       roomRateAtBooking = Number(room.pricePerNight);
 
-      // Price calculation: nights * rate per night - discount + 12% VAT + 5% service charge
       const baseTotal = roomRateAtBooking * nightsCount;
       const discountVal = baseTotal * discountRate;
       const taxable = baseTotal - discountVal;
@@ -172,9 +223,19 @@ export async function createReservation(data: ReservationFormInput) {
       },
     });
 
+    // Create checkout session automatically for lodging stay reservations
+    let checkoutUrl: string | null = null;
+    if (finalAmount && finalAmount > 0) {
+      const stripeRes = await createStripeSessionForReservation(reservation.id);
+      if (stripeRes.success) {
+        checkoutUrl = stripeRes.checkoutUrl || null;
+      }
+    }
+
     revalidatePath("/dashboard");
     return {
       success: true,
+      checkoutUrl,
       reservation: {
         id: reservation.id,
         name: reservation.name,
@@ -252,7 +313,6 @@ export async function modifyReservation(
     }
 
     if (reservation.roomId && newCheckOut) {
-      // Check date availability conflicts excluding current reservation
       const isAvailable = await checkRoomAvailability(reservation.roomId, newCheckIn, newCheckOut, reservationId);
       if (!isAvailable) {
         return {
@@ -261,17 +321,15 @@ export async function modifyReservation(
         };
       }
 
-      // Calculate new rates based on new stay length
       const ms = new Date(newCheckOut).getTime() - new Date(newCheckIn).getTime();
       const nightsCount = Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)));
       const rate = Number(reservation.roomRateAtBooking || 0);
 
-      // Re-apply same discount if existed
       let discountRate = 0;
       if (reservation.finalAmount && reservation.roomRateAtBooking) {
         const originalNights = Math.max(1, Math.round((new Date(reservation.checkOutDate || "").getTime() - new Date(reservation.date).getTime()) / (1000 * 60 * 60 * 24)));
         const originalBase = rate * originalNights;
-        const discountVal = originalBase - (Number(reservation.finalAmount) / 1.17); // reverse VAT/service calculation roughly
+        const discountVal = originalBase - (Number(reservation.finalAmount) / 1.17);
         discountRate = Math.max(0, Math.min(0.5, discountVal / originalBase));
       }
 
@@ -292,7 +350,6 @@ export async function modifyReservation(
         },
       });
     } else {
-      // Dining modification
       await db.reservation.update({
         where: { id: reservationId },
         data: {
