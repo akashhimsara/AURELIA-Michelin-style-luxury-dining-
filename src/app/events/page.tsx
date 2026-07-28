@@ -12,34 +12,118 @@ export const metadata: Metadata = {
   description: "Arrange exclusive wedding ceremonies, corporate galas, and botanical glasshouse banquets.",
 };
 
-const packages = [
-  {
-    title: "Imperial Pavilion Ceremony",
-    subtitle: "Luxury Weddings",
-    description: "An open-air garden sanctuary featuring manicured flower borders, white drapes, and customized floral arches. Perfect for grand union celebrations.",
-    capacity: "50 - 300 Guests",
-    rate: "From £12,000",
-    image: "/event-wedding.png",
-  },
-  {
-    title: "Grand Ballroom Seminar",
-    subtitle: "Corporate Events",
-    description: "A spacious formal hall featuring modern gold and charcoal panel accents, laser projection fixtures, and fine catering options for executive seminars.",
-    capacity: "20 - 500 Guests",
-    rate: "From £8,000",
-    image: "/event-corporate.png",
-  },
-  {
-    title: "Glasshouse Canopy Banquet",
-    subtitle: "Private Celebrations",
-    description: "An intimate dining hall nested in tropical glass domes. Surrounded by exotic orchids and suspended ferns, illuminated by soft tea candles.",
-    capacity: "10 - 100 Guests",
-    rate: "From £4,000",
-    image: "/event-private.png",
-  },
-];
+import { db } from "@/lib/db";
 
-export default function EventsPage() {
+async function getEvents() {
+  const fallbackPackages = [
+    {
+      title: "Imperial Pavilion Ceremony",
+      subtitle: "Luxury Weddings",
+      description: "An open-air garden sanctuary featuring manicured flower borders, white drapes, and customized floral arches. Perfect for grand union celebrations.",
+      capacity: "50 - 300 Guests",
+      rate: "From £12,000",
+      image: "/event-wedding.png",
+    },
+    {
+      title: "Grand Ballroom Seminar",
+      subtitle: "Corporate Events",
+      description: "A spacious formal hall featuring modern gold and charcoal panel accents, laser projection fixtures, and fine catering options for executive seminars.",
+      capacity: "20 - 500 Guests",
+      rate: "From £8,000",
+      image: "/event-corporate.png",
+    },
+    {
+      title: "Glasshouse Canopy Banquet",
+      subtitle: "Private Celebrations",
+      description: "An intimate dining hall nested in tropical glass domes. Surrounded by exotic orchids and suspended ferns, illuminated by soft tea candles.",
+      capacity: "10 - 100 Guests",
+      rate: "From £4,000",
+      image: "/event-private.png",
+    },
+  ];
+
+  try {
+    let events = await db.event.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (events.length === 0) {
+      let restaurant = await db.restaurant.findFirst();
+      if (!restaurant) {
+        restaurant = await db.restaurant.create({
+          data: {
+            name: "AURELIA London",
+            address: "15 Bruton Place, Mayfair, London W1J 6NP",
+            phone: "+44 20 7123 4567",
+            email: "london@aurelia-dining.com",
+          },
+        });
+      }
+
+      await db.event.createMany({
+        data: [
+          {
+            title: "Imperial Pavilion Ceremony",
+            description: "An open-air garden sanctuary featuring manicured flower borders, white drapes, and customized floral arches. Perfect for grand union celebrations.",
+            capacity: 300,
+            price: 12000,
+            date: new Date(),
+            imageUrl: "/event-wedding.png",
+            restaurantId: restaurant.id,
+          },
+          {
+            title: "Grand Ballroom Seminar",
+            description: "A spacious formal hall featuring modern gold and charcoal panel accents, laser projection fixtures, and fine catering options for executive seminars.",
+            capacity: 500,
+            price: 8000,
+            date: new Date(),
+            imageUrl: "/event-corporate.png",
+            restaurantId: restaurant.id,
+          },
+          {
+            title: "Glasshouse Canopy Banquet",
+            description: "An intimate dining hall nested in tropical glass domes. Surrounded by exotic orchids and suspended ferns, illuminated by soft tea candles.",
+            capacity: 100,
+            price: 4000,
+            date: new Date(),
+            imageUrl: "/event-private.png",
+            restaurantId: restaurant.id,
+          },
+        ],
+      });
+
+      events = await db.event.findMany({
+        orderBy: { createdAt: "desc" },
+      });
+    }
+
+    return events.map((ev) => {
+      let subtitle = "Special Celebration";
+      if (ev.title.toLowerCase().includes("wedding") || ev.title.toLowerCase().includes("ceremony") || ev.capacity === 300) {
+        subtitle = "Luxury Weddings";
+      } else if (ev.title.toLowerCase().includes("corporate") || ev.title.toLowerCase().includes("seminar") || ev.capacity === 500) {
+        subtitle = "Corporate Events";
+      } else if (ev.title.toLowerCase().includes("private") || ev.title.toLowerCase().includes("banquet") || ev.capacity === 100) {
+        subtitle = "Private Celebrations";
+      }
+
+      return {
+        title: ev.title,
+        subtitle,
+        description: ev.description,
+        capacity: ev.capacity <= 100 ? `10 - ${ev.capacity} Guests` : ev.capacity <= 300 ? `50 - ${ev.capacity} Guests` : `20 - ${ev.capacity} Guests`,
+        rate: `From £${Number(ev.price).toLocaleString()}`,
+        image: ev.imageUrl,
+      };
+    });
+  } catch (error) {
+    console.warn("Database connection issue in events/page.tsx. Falling back to default packages.", error);
+    return fallbackPackages;
+  }
+}
+
+export default async function EventsPage() {
+  const packages = await getEvents();
   return (
     <PageWrapper>
       {/* Header section */}

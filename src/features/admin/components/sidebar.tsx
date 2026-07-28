@@ -3,7 +3,7 @@
 import React, { useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, CalendarRange, UtensilsCrossed, LogOut, Loader2, Inbox, Home, Users, Heart } from "lucide-react";
+import { LayoutDashboard, CalendarRange, UtensilsCrossed, LogOut, Loader2, Inbox, Home, Users, Heart, Sparkles } from "lucide-react";
 import { logoutAdmin } from "../actions/auth";
 
 export function Sidebar() {
@@ -16,6 +16,7 @@ export function Sidebar() {
     { label: "Menu Catalog", href: "/admin/menu", icon: UtensilsCrossed },
     { label: "Suites Catalog", href: "/admin/rooms", icon: Home },
     { label: "Spa Catalog", href: "/admin/spa", icon: Heart },
+    { label: "Events Catalog", href: "/admin/events", icon: Sparkles },
     { label: "Guest Profiles", href: "/admin/customers", icon: Users },
     { label: "Guest Inquiries", href: "/admin/messages", icon: Inbox },
   ];
