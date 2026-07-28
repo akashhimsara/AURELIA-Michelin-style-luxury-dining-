@@ -31,22 +31,31 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
     formState: { errors },
     reset,
     watch,
-  } = useForm<ReservationFormInput>({
-    resolver: zodResolver(reservationSchema),
+  } = useForm<any>({
+    resolver: zodResolver(reservationSchema) as any,
     defaultValues: {
+      name: "",
+      email: "",
+      phone: "",
       guests: 2,
+      children: 0,
       time: isRoomBooking ? null : "19:00",
       date: date || new Date().toISOString().split("T")[0],
+      checkOutDate: isRoomBooking
+        ? new Date(Date.now() + 86400000).toISOString().split("T")[0]
+        : null,
       roomId: roomId || null,
       promoCode: promo || "",
     },
   });
 
-  // Ensure value switches are synced if props update dynamically
   useEffect(() => {
     if (roomId) {
       setValue("roomId", roomId);
       setValue("time", null);
+      if (!watch("checkOutDate")) {
+        setValue("checkOutDate", new Date(Date.now() + 86400000).toISOString().split("T")[0]);
+      }
     }
     if (date) {
       setValue("date", date);
@@ -57,8 +66,11 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
   }, [roomId, date, promo, setValue]);
 
   // Live promo codes calculation
+  const checkInVal = watch("date");
+  const checkOutVal = watch("checkOutDate");
   const promoCodeValue = watch("promoCode") || "";
   const code = promoCodeValue.toUpperCase().trim();
+
   let discountRate = 0;
   let promoMessage = "";
 
@@ -73,11 +85,24 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
     promoMessage = "20% Wellness Retreat discount applied";
   }
 
-  const basePrice = roomPrice || 0;
-  const discountAmount = basePrice * discountRate;
-  const finalPrice = basePrice - discountAmount;
+  // Calculate nights
+  let nightsCount = 1;
+  if (isRoomBooking && checkInVal && checkOutVal) {
+    const ms = new Date(checkOutVal).getTime() - new Date(checkInVal).getTime();
+    if (ms > 0) {
+      nightsCount = Math.max(1, Math.round(ms / (1000 * 60 * 60 * 24)));
+    }
+  }
 
-  const onSubmit = (data: ReservationFormInput) => {
+  const basePrice = roomPrice || 0;
+  const baseTotal = basePrice * nightsCount;
+  const discountAmount = baseTotal * discountRate;
+  const taxableAmount = baseTotal - discountAmount;
+  const taxAmount = taxableAmount * 0.12;
+  const serviceChargeAmount = taxableAmount * 0.05;
+  const grandTotal = taxableAmount + taxAmount + serviceChargeAmount;
+
+  const onSubmit = (data: any) => {
     setServerError(null);
     startTransition(async () => {
       try {
@@ -99,7 +124,6 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
     setServerError(null);
   };
 
-  // 1. Success Screen Rendering State
   if (successData) {
     return (
       <div className="w-full max-w-xl mx-auto p-8 border border-gold/20 bg-charcoal/80 rounded-sm text-center space-y-8 shadow-elevation relative overflow-hidden luxury-glass">
@@ -130,11 +154,11 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
 
           <div>
             <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Guests Size</span>
-            <span className="font-medium text-zinc-200">{successData.guests} guests</span>
+            <span className="font-medium text-zinc-200">{successData.guests} adults {successData.children > 0 ? `, ${successData.children} children` : ""}</span>
           </div>
 
           <div>
-            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Target Date</span>
+            <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">Check-in</span>
             <span className="font-medium text-zinc-200">
               {new Date(successData.date).toLocaleDateString("en-GB", {
                 day: "2-digit",
@@ -146,17 +170,23 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
 
           <div>
             <span className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1">
-              {isRoomBooking ? "Lodging Unit" : "Dining Slot"}
+              {isRoomBooking ? "Check-out" : "Dining Slot"}
             </span>
             <span className="font-medium text-zinc-200">
-              {isRoomBooking ? successData.bookedRoomName : successData.time}
+              {isRoomBooking && successData.checkOutDate
+                ? new Date(successData.checkOutDate).toLocaleDateString("en-GB", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                  })
+                : successData.time}
             </span>
           </div>
 
-          {isRoomBooking && successData.roomRateAtBooking && (
+          {isRoomBooking && successData.finalAmount && (
             <div className="col-span-2 pt-2 border-t border-gold/5 flex justify-between items-center">
-              <span className="text-[9px] uppercase tracking-wider text-zinc-500">Locked Deposit billing</span>
-              <span className="font-mono text-gold font-medium">&pound;{successData.roomRateAtBooking.toFixed(2)}</span>
+              <span className="text-[9px] uppercase tracking-wider text-zinc-500">Grand Total Billing (Taxes Inc.)</span>
+              <span className="font-mono text-gold font-medium">&pound;{successData.finalAmount.toFixed(2)}</span>
             </div>
           )}
         </div>
@@ -174,7 +204,6 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
     );
   }
 
-  // 2. Standard Input Form Rendering State
   return (
     <div className="w-full max-w-xl mx-auto p-6 sm:p-8 border border-gold/10 bg-charcoal/40 rounded-sm shadow-elevation relative luxury-glass">
       <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-gold/20 to-transparent" />
@@ -201,7 +230,7 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
           </div>
         )}
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-left">
           {/* Guest Name */}
           <div className="space-y-1.5 col-span-1 sm:col-span-2">
             <label htmlFor="name" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
@@ -210,12 +239,12 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
             <input
               id="name"
               type="text"
-              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
               placeholder="E.g., Lord Sterling"
               {...register("name")}
             />
             {errors.name && (
-              <span className="text-[10px] text-red-400 font-sans block">{errors.name.message}</span>
+              <span className="text-[10px] text-red-400 font-sans block">{errors.name?.message as string}</span>
             )}
           </div>
 
@@ -227,12 +256,12 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
             <input
               id="email"
               type="email"
-              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
               placeholder="sterling@belgravia.com"
               {...register("email")}
             />
             {errors.email && (
-              <span className="text-[10px] text-red-400 font-sans block">{errors.email.message}</span>
+              <span className="text-[10px] text-red-400 font-sans block">{errors.email?.message as string}</span>
             )}
           </div>
 
@@ -244,16 +273,16 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
             <input
               id="phone"
               type="tel"
-              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
               placeholder="+44 7123 456789"
               {...register("phone")}
             />
             {errors.phone && (
-              <span className="text-[10px] text-red-400 font-sans block">{errors.phone.message}</span>
+              <span className="text-[10px] text-red-400 font-sans block">{errors.phone?.message as string}</span>
             )}
           </div>
 
-          {/* Date Selector */}
+          {/* Check-in Date Selector */}
           <div className="space-y-1.5">
             <label htmlFor="date" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
               {isRoomBooking ? "Check-in Date" : "Select Date"}
@@ -261,23 +290,39 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
             <input
               id="date"
               type="date"
-              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 scheme-dark"
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 scheme-dark"
               {...register("date")}
             />
             {errors.date && (
-              <span className="text-[10px] text-red-400 font-sans block">{errors.date.message}</span>
+              <span className="text-[10px] text-red-400 font-sans block">{errors.date?.message as string}</span>
             )}
           </div>
 
-          {/* Conditional rendering for dining time */}
-          {!isRoomBooking ? (
+          {/* Check-out Date (Only for stay bookings) */}
+          {isRoomBooking ? (
+            <div className="space-y-1.5">
+              <label htmlFor="checkOutDate" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+                Check-out Date
+              </label>
+              <input
+                id="checkOutDate"
+                type="date"
+                className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 scheme-dark"
+                {...register("checkOutDate")}
+              />
+              {errors.checkOutDate && (
+                <span className="text-[10px] text-red-400 font-sans block">{errors.checkOutDate?.message as string}</span>
+              )}
+            </div>
+          ) : (
+            /* Seating time for dining bookings */
             <div className="space-y-1.5">
               <label htmlFor="time" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
                 Seating Time
               </label>
               <select
                 id="time"
-                className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 appearance-none cursor-pointer"
+                className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 appearance-none cursor-pointer"
                 {...register("time")}
               >
                 <option value="17:30">17:30 PM (Early Dinner)</option>
@@ -290,63 +335,94 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
                 <option value="21:00">21:00 PM</option>
                 <option value="21:30">21:30 PM (Late Dinner)</option>
               </select>
-              {errors.time && (
-                <span className="text-[10px] text-red-400 font-sans block">{errors.time.message}</span>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-1.5">
-              <label className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
-                Check-in Window
-              </label>
-              <div className="w-full bg-black/30 border border-gold/10 p-3 text-xs text-zinc-400 font-sans font-light rounded-sm">
-                Check-in starts at 15:00 PM
-              </div>
             </div>
           )}
 
-          {/* Guest Count */}
+          {/* Adults Guest Count */}
           <div className="space-y-1.5">
             <label htmlFor="guests" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
-              {isRoomBooking ? "Number of Guests" : "Number of Guests"}
+              Adults
             </label>
             <select
               id="guests"
-              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 appearance-none cursor-pointer"
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm cursor-pointer"
               {...register("guests", { valueAsNumber: true })}
             >
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
                 <option key={num} value={num}>
-                  {num} {num === 1 ? "Guest" : "Guests"}
+                  {num} {num === 1 ? "Adult" : "Adults"}
                 </option>
               ))}
             </select>
-            {errors.guests && (
-              <span className="text-[10px] text-red-400 font-sans block">{errors.guests.message}</span>
-            )}
           </div>
 
-          {/* Promo Code input */}
-          <div className="space-y-1.5">
-            <label htmlFor="promoCode" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
-              Promo Code
-            </label>
-            <input
-              id="promoCode"
-              type="text"
-              className="w-full bg-black/60 border border-gold/15 focus:border-gold focus:ring-1 focus:ring-gold outline-none p-3 text-sm text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
-              placeholder="e.g., ROYAL15"
-              {...register("promoCode")}
-            />
-          </div>
+          {/* Children Guest Count (Stays only) */}
+          {isRoomBooking ? (
+            <div className="space-y-1.5">
+              <label htmlFor="children" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+                Children
+              </label>
+              <select
+                id="children"
+                className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm cursor-pointer"
+                {...register("children", { valueAsNumber: true })}
+              >
+                {[0, 1, 2, 3, 4, 5, 6].map((num) => (
+                  <option key={num} value={num}>
+                    {num} {num === 1 ? "Child" : "Children"}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : (
+            /* Promo Code input for dining */
+            <div className="space-y-1.5">
+              <label htmlFor="promoCode" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+                Promo Code
+              </label>
+              <input
+                id="promoCode"
+                type="text"
+                className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
+                placeholder="e.g., ROYAL15"
+                {...register("promoCode")}
+              />
+            </div>
+          )}
+
+          {/* Promo Code input for stays (places it full-width or next row) */}
+          {isRoomBooking && (
+            <div className="space-y-1.5 col-span-1 sm:col-span-2">
+              <label htmlFor="promoCode" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+                Promo Code
+              </label>
+              <input
+                id="promoCode"
+                type="text"
+                className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300"
+                placeholder="e.g., ROYAL15"
+                {...register("promoCode")}
+              />
+            </div>
+          )}
         </div>
 
         {/* Dynamic price calculation display for lodging bookings */}
         {isRoomBooking && roomPrice && (
-          <div className="p-4 bg-black/50 border border-gold/15 rounded-sm space-y-2 text-xs font-sans">
+          <div className="p-4 bg-black/50 border border-gold/15 rounded-sm space-y-2 text-xs font-sans text-left">
             <div className="flex justify-between items-center text-zinc-400">
-              <span>Base Rate per Night:</span>
-              <span className="font-mono text-zinc-200">&pound;{basePrice.toFixed(2)}</span>
+              <span>Suite stay rate:</span>
+              <span className="font-mono text-zinc-200">&pound;{basePrice.toFixed(2)} / night</span>
+            </div>
+
+            <div className="flex justify-between items-center text-zinc-400">
+              <span>Stay Duration:</span>
+              <span className="font-mono text-zinc-200">{nightsCount} {nightsCount === 1 ? "night" : "nights"}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-zinc-400">
+              <span>Base Total:</span>
+              <span className="font-mono text-zinc-200">&pound;{baseTotal.toFixed(2)}</span>
             </div>
 
             {discountRate > 0 && (
@@ -358,9 +434,19 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
               </div>
             )}
 
+            <div className="flex justify-between items-center text-zinc-400">
+              <span>Lodging Tax (12% VAT):</span>
+              <span className="font-mono text-zinc-200">&pound;{taxAmount.toFixed(2)}</span>
+            </div>
+
+            <div className="flex justify-between items-center text-zinc-400">
+              <span>Service Charge (5%):</span>
+              <span className="font-mono text-zinc-200">&pound;{serviceChargeAmount.toFixed(2)}</span>
+            </div>
+
             <div className="pt-2 border-t border-gold/5 flex justify-between items-center text-sm">
-              <span className="text-zinc-300 font-medium">Estimated Deposit Due:</span>
-              <span className="font-mono text-gold font-semibold">&pound;{finalPrice.toFixed(2)}</span>
+              <span className="text-zinc-300 font-medium">Grand Total Stay Amount:</span>
+              <span className="font-mono text-gold font-semibold">&pound;{grandTotal.toFixed(2)}</span>
             </div>
           </div>
         )}
@@ -370,7 +456,7 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
           <Button
             type="submit"
             variant="primary"
-            className="w-full flex items-center justify-center gap-2"
+            className="w-full flex items-center justify-center gap-2 text-xs py-3 cursor-pointer"
             disabled={isPending}
           >
             {isPending ? (

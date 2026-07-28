@@ -103,8 +103,10 @@ model Reservation {
   email               String
   phone               String
   date                DateTime
+  checkOutDate        DateTime?
   time                String?     // Optional (seating slots use time, rooms use dates)
   guests              Int
+  children            Int         @default(0)
   status              String      @default("pending") // pending, confirmed, cancelled
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt
