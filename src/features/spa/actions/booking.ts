@@ -3,6 +3,7 @@
 import { db } from "@/lib/db";
 import { spaBookingSchema, SpaBookingInput } from "../schema";
 import { createStripeSessionForReservation } from "@/features/booking/actions";
+import { sendBookingConfirmation } from "@/lib/resend";
 
 export async function createSpaInquiry(data: SpaBookingInput) {
   const validated = spaBookingSchema.safeParse(data);
@@ -84,6 +85,15 @@ export async function createSpaInquiry(data: SpaBookingInput) {
         checkoutUrl = stripeRes.checkoutUrl || null;
       }
     }
+
+    // Dispatch booking confirmation email via Resend
+    await sendBookingConfirmation(reservation.email, reservation.name, {
+      id: reservation.id,
+      type: "Spa",
+      date: reservation.date.toISOString(),
+      guests: reservation.guests,
+      bookedRoomName: reservation.bookedRoomName,
+    });
 
     console.log(`
 ============================================================

@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { experienceBookingSchema, ExperienceBookingInput, experiencesCatalog } from "../schema";
 import { revalidatePath } from "next/cache";
 import { createStripeSessionForReservation } from "@/features/booking/actions";
+import { sendBookingConfirmation } from "@/lib/resend";
 
 export async function createExperienceBooking(data: ExperienceBookingInput) {
   const validated = experienceBookingSchema.safeParse(data);
@@ -74,6 +75,15 @@ export async function createExperienceBooking(data: ExperienceBookingInput) {
         checkoutUrl = stripeRes.checkoutUrl || null;
       }
     }
+
+    // Dispatch booking confirmation email via Resend
+    await sendBookingConfirmation(reservation.email, reservation.name, {
+      id: reservation.id,
+      type: "Experience",
+      date: reservation.date.toISOString(),
+      guests: reservation.guests,
+      bookedRoomName: reservation.bookedRoomName,
+    });
 
     console.log(`
 ============================================================
