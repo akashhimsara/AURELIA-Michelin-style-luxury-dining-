@@ -43,7 +43,22 @@ export async function createReservation(data: ReservationFormInput) {
     };
   }
 
-  const { name, email, phone, date, checkOutDate, time, guests, children = 0, roomId, restaurantId, promoCode } = validated.data;
+  const {
+    name,
+    email,
+    phone,
+    date,
+    checkOutDate,
+    time,
+    guests,
+    children = 0,
+    roomId,
+    restaurantId,
+    promoCode,
+    specialRequests,
+    dietaryRequirements,
+  } = validated.data;
+  
   const sanitizedEmail = email.toLowerCase().trim();
 
   try {
@@ -152,6 +167,8 @@ export async function createReservation(data: ReservationFormInput) {
         roomRateAtBooking: roomRateAtBooking ? roomRateAtBooking : null,
         bookedRoomName: bookedRoomName || null,
         finalAmount: finalAmount ? finalAmount : null,
+        specialRequests: specialRequests || null,
+        dietaryRequirements: dietaryRequirements || null,
       },
     });
 
@@ -211,7 +228,15 @@ export async function cancelReservation(reservationId: string) {
   }
 }
 
-export async function modifyReservation(reservationId: string, newCheckIn: string, newCheckOut: string, guests: number) {
+export async function modifyReservation(
+  reservationId: string,
+  newCheckIn: string,
+  newCheckOut: string | null,
+  guests: number,
+  newTime?: string | null,
+  specialRequests?: string | null,
+  dietaryRequirements?: string | null
+) {
   const currentUser = await getCurrentUser();
   if (!currentUser) {
     return { success: false, message: "Unauthorized" };
@@ -226,7 +251,7 @@ export async function modifyReservation(reservationId: string, newCheckIn: strin
       return { success: false, message: "Reservation record could not be found." };
     }
 
-    if (reservation.roomId) {
+    if (reservation.roomId && newCheckOut) {
       // Check date availability conflicts excluding current reservation
       const isAvailable = await checkRoomAvailability(reservation.roomId, newCheckIn, newCheckOut, reservationId);
       if (!isAvailable) {
@@ -272,7 +297,10 @@ export async function modifyReservation(reservationId: string, newCheckIn: strin
         where: { id: reservationId },
         data: {
           date: new Date(newCheckIn),
+          time: newTime || reservation.time,
           guests,
+          specialRequests: specialRequests !== undefined ? specialRequests : reservation.specialRequests,
+          dietaryRequirements: dietaryRequirements !== undefined ? dietaryRequirements : reservation.dietaryRequirements,
         },
       });
     }

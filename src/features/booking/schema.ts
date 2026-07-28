@@ -14,6 +14,8 @@ export const reservationSchema = z.object({
   roomId: z.string().optional().nullable(),
   restaurantId: z.string().optional().nullable(),
   promoCode: z.string().optional().nullable(),
+  specialRequests: z.string().optional().nullable(),
+  dietaryRequirements: z.string().optional().nullable(),
 }).refine((data) => {
   if (data.roomId) {
     if (!data.checkOutDate) return false;

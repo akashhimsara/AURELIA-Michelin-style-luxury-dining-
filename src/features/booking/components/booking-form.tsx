@@ -46,6 +46,8 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
         : null,
       roomId: roomId || null,
       promoCode: promo || "",
+      specialRequests: "",
+      dietaryRequirements: "",
     },
   });
 
@@ -390,7 +392,7 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
             </div>
           )}
 
-          {/* Promo Code input for stays (places it full-width or next row) */}
+          {/* Promo Code input for stays */}
           {isRoomBooking && (
             <div className="space-y-1.5 col-span-1 sm:col-span-2">
               <label htmlFor="promoCode" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
@@ -405,6 +407,34 @@ export function BookingForm({ roomId, selectedRoomName, roomPrice, date, promo }
               />
             </div>
           )}
+
+          {/* Dietary Requirements */}
+          <div className="space-y-1.5 col-span-1 sm:col-span-2">
+            <label htmlFor="dietaryRequirements" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+              Dietary Requirements / Allergies (Optional)
+            </label>
+            <textarea
+              id="dietaryRequirements"
+              rows={2}
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 resize-none"
+              placeholder="E.g. Gluten intolerance, nut allergy, vegan..."
+              {...register("dietaryRequirements")}
+            />
+          </div>
+
+          {/* Special Requests */}
+          <div className="space-y-1.5 col-span-1 sm:col-span-2">
+            <label htmlFor="specialRequests" className="block text-[10px] uppercase tracking-widest text-gold font-sans font-medium">
+              Special Requests (Optional)
+            </label>
+            <textarea
+              id="specialRequests"
+              rows={2}
+              className="w-full bg-black/60 border border-gold/15 focus:border-gold outline-none p-3 text-xs text-zinc-200 font-sans font-light rounded-sm transition-all duration-300 resize-none"
+              placeholder="E.g. Window table request, anniversary decoration, high chair..."
+              {...register("specialRequests")}
+            />
+          </div>
         </div>
 
         {/* Dynamic price calculation display for lodging bookings */}

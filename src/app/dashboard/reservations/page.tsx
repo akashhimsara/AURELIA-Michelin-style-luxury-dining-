@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, ChevronDown, Edit2 } from "lucide-react";
+import { Calendar, BedDouble, ArrowLeft, RefreshCw, XCircle, Download, CheckCircle2, Coffee, Clock, Edit2 } from "lucide-react";
 import { PageWrapper } from "@/components/ui/page-wrapper";
 import { Section } from "@/components/ui/section";
 import { Container } from "@/components/ui/container";
@@ -18,15 +18,22 @@ interface ReservationItem {
   name: string;
   date: string;
   checkOutDate?: string | null;
+  time?: string | null;
   guests: number;
   status: string;
   finalAmount?: number | null;
+  specialRequests?: string | null;
+  dietaryRequirements?: string | null;
 }
 
 export default function ReservationsPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [reservations, setReservations] = useState<ReservationItem[]>([]);
+  const [activeTab, setActiveTab] = useState<"lodging" | "dining">("lodging");
+  
+  const [lodgingReservations, setLodgingReservations] = useState<ReservationItem[]>([]);
+  const [diningReservations, setDiningReservations] = useState<ReservationItem[]>([]);
+  
   const [isPending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [actionSuccess, setActionSuccess] = useState<string | null>(null);
@@ -35,14 +42,20 @@ export default function ReservationsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editCheckIn, setEditCheckIn] = useState("");
   const [editCheckOut, setEditCheckOut] = useState("");
+  const [editTime, setEditTime] = useState("19:00");
   const [editGuests, setEditGuests] = useState(2);
+  const [editSpecialRequests, setEditSpecialRequests] = useState("");
+  const [editDietaryRequirements, setEditDietaryRequirements] = useState("");
 
   async function loadData() {
     const res = await getGuestDashboardData();
     if (!res.success) {
       router.push("/login");
     } else {
-      setReservations((res.upcoming || []).filter((r: any) => r.type === "Lodging"));
+      const allUpcoming = res.upcoming || [];
+      // Filter out types
+      setLodgingReservations(allUpcoming.filter((r: any) => r.type === "Lodging"));
+      setDiningReservations(allUpcoming.filter((r: any) => r.type === "Dining"));
     }
     setLoading(false);
   }
@@ -71,7 +84,10 @@ export default function ReservationsPage() {
     setEditingId(res.id);
     setEditCheckIn(res.date.split("T")[0]);
     setEditCheckOut(res.checkOutDate ? res.checkOutDate.split("T")[0] : "");
+    setEditTime(res.time || "19:00");
     setEditGuests(res.guests);
+    setEditSpecialRequests(res.specialRequests || "");
+    setEditDietaryRequirements(res.dietaryRequirements || "");
   };
 
   const cancelEdit = () => {
@@ -79,16 +95,29 @@ export default function ReservationsPage() {
     setActionError(null);
   };
 
-  const handleModify = (id: string) => {
+  const handleModify = (id: string, type: string) => {
     setActionError(null);
     setActionSuccess(null);
-    if (!editCheckIn || !editCheckOut) {
-      setActionError("Dates must be fully specified.");
+
+    if (type === "Lodging" && (!editCheckIn || !editCheckOut)) {
+      setActionError("Check-in and Check-out dates must be fully specified.");
+      return;
+    }
+    if (type === "Dining" && !editCheckIn) {
+      setActionError("Dining reservation date must be specified.");
       return;
     }
 
     startTransition(async () => {
-      const res = await modifyReservation(id, editCheckIn, editCheckOut, editGuests);
+      const res = await modifyReservation(
+        id,
+        editCheckIn,
+        type === "Lodging" ? editCheckOut : null,
+        editGuests,
+        type === "Dining" ? editTime : null,
+        type === "Dining" ? editSpecialRequests : null,
+        type === "Dining" ? editDietaryRequirements : null
+      );
       if (res.success) {
         setActionSuccess(res.message);
         setEditingId(null);
@@ -107,10 +136,13 @@ export default function ReservationsPage() {
         RESERVATION CONFIRMATION
 =========================================
 Voucher Reference: AUR-${code}
-Accommodation Stay: ${res.name}
-Guests Count:      ${res.guests} adults
-Check-in Date:     ${new Date(res.date).toLocaleDateString("en-GB")}
-Check-out Date:    ${res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}
+Arrangement Class: ${res.type.toUpperCase()}
+Name:              ${res.name}
+Guests Count:      ${res.guests} guests
+Target Date:       ${new Date(res.date).toLocaleDateString("en-GB")}
+${res.type === "Lodging" ? `Check-out Date:    ${res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}` : `Seating Time:      ${res.time || "N/A"}`}
+${res.type === "Dining" && res.dietaryRequirements ? `Dietary Notes:     ${res.dietaryRequirements}` : ""}
+${res.type === "Dining" && res.specialRequests ? `Special Requests:  ${res.specialRequests}` : ""}
 Grand Total:       £${res.finalAmount ? res.finalAmount.toFixed(2) : "0.00"}
 Booking Status:    ${res.status.toUpperCase()}
 =========================================
@@ -121,7 +153,7 @@ Thank you for choosing AURELIA.
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `Aurelia_Confirmation_${code}.txt`;
+    link.download = `Aurelia_${res.type}_Confirmation_${code}.txt`;
     link.click();
   };
 
@@ -134,6 +166,8 @@ Thank you for choosing AURELIA.
       </PageWrapper>
     );
   }
+
+  const currentList = activeTab === "lodging" ? lodgingReservations : diningReservations;
 
   return (
     <PageWrapper>
@@ -149,11 +183,33 @@ Thank you for choosing AURELIA.
             </Link>
           </div>
 
-          <div>
-            <Heading subtitle>Stay Management</Heading>
-            <Heading as="h1" accent className="tracking-wide text-2xl sm:text-3xl">
-              Suite Arrangements Portal
-            </Heading>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-4">
+            <div>
+              <Heading subtitle>Stay & Dining Management</Heading>
+              <Heading as="h1" accent className="tracking-wide text-2xl sm:text-3xl">
+                Reservations Portal
+              </Heading>
+            </div>
+
+            {/* Navigation Tabs */}
+            <div className="flex border-b border-gold/10 font-sans text-[10px] uppercase tracking-widest gap-4">
+              <button
+                onClick={() => { setActiveTab("lodging"); cancelEdit(); }}
+                className={`pb-2 transition-all cursor-pointer ${
+                  activeTab === "lodging" ? "text-gold border-b border-gold font-medium" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Suites Stays
+              </button>
+              <button
+                onClick={() => { setActiveTab("dining"); cancelEdit(); }}
+                className={`pb-2 transition-all cursor-pointer ${
+                  activeTab === "dining" ? "text-gold border-b border-gold font-medium" : "text-zinc-500 hover:text-zinc-300"
+                }`}
+              >
+                Gastronomy Dining
+              </button>
+            </div>
           </div>
 
           {actionSuccess && (
@@ -168,21 +224,27 @@ Thank you for choosing AURELIA.
           )}
 
           <div className="space-y-6">
-            {reservations.length === 0 ? (
+            {currentList.length === 0 ? (
               <div className="p-12 border border-gold/10 bg-charcoal/10 rounded-sm text-center">
-                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-sans block">No Active Room Stay Reservations</span>
-                <p className="text-[9px] text-zinc-600 mt-1 font-light font-sans">You currently do not have any room stays booked at AURELIA London.</p>
+                <span className="text-[10px] uppercase tracking-widest text-zinc-500 font-sans block">
+                  {activeTab === "lodging" ? "No Active Suite Bookings" : "No Active Table Bookings"}
+                </span>
+                <p className="text-[9px] text-zinc-600 mt-1 font-light font-sans">
+                  {activeTab === "lodging"
+                    ? "You currently do not have any room stay reservations at AURELIA London."
+                    : "You currently do not have any dining table reservations logged."}
+                </p>
                 <div className="mt-6">
-                  <Link href="/rooms">
+                  <Link href={activeTab === "lodging" ? "/rooms" : "/reserve"}>
                     <Button variant="outline" size="sm" className="uppercase tracking-widest font-sans text-[10px]">
-                      Book a Luxury Suite
+                      {activeTab === "lodging" ? "Book a Luxury Suite" : "Reserve Dining Table"}
                     </Button>
                   </Link>
                 </div>
               </div>
             ) : (
               <div className="space-y-4">
-                {reservations.map((res) => {
+                {currentList.map((res) => {
                   const isEditing = editingId === res.id;
                   const code = res.id.slice(0, 8).toUpperCase();
 
@@ -192,7 +254,7 @@ Thank you for choosing AURELIA.
                       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                         <div className="flex items-center gap-3">
                           <div className="p-2.5 border border-gold/15 bg-gold/5 text-gold">
-                            <BedDouble size={16} />
+                            {res.type === "Lodging" ? <BedDouble size={16} /> : <Coffee size={16} />}
                           </div>
                           <div>
                             <span className="text-[8px] uppercase tracking-widest font-sans text-zinc-500 block">Ref: AUR-{code}</span>
@@ -207,61 +269,133 @@ Thank you for choosing AURELIA.
 
                       {/* Detail row */}
                       {!isEditing ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-sans font-light text-zinc-400 py-2 border-y border-gold/5">
-                          <div>
-                            <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Check-in</span>
-                            <span className="text-zinc-300 font-medium font-sans">
-                              {new Date(res.date).toLocaleDateString("en-GB")}
-                            </span>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs font-sans font-light text-zinc-400 py-2 border-y border-gold/5">
+                            <div>
+                              <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Date</span>
+                              <span className="text-zinc-300 font-medium font-sans">
+                                {new Date(res.date).toLocaleDateString("en-GB")}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">
+                                {res.type === "Lodging" ? "Check-out" : "Seating Time"}
+                              </span>
+                              <span className="text-zinc-300 font-medium font-sans">
+                                {res.type === "Lodging"
+                                  ? res.checkOutDate
+                                    ? new Date(res.checkOutDate).toLocaleDateString("en-GB")
+                                    : "N/A"
+                                  : res.time || "N/A"}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Guests</span>
+                              <span className="text-zinc-300 font-medium font-sans">{res.guests} Guests</span>
+                            </div>
+                            <div>
+                              <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Estimated Spend</span>
+                              <span className="text-zinc-300 font-mono font-medium">
+                                {res.finalAmount ? `£${res.finalAmount.toFixed(2)}` : "TBD"}
+                              </span>
+                            </div>
                           </div>
-                          <div>
-                            <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Check-out</span>
-                            <span className="text-zinc-300 font-medium font-sans">
-                              {res.checkOutDate ? new Date(res.checkOutDate).toLocaleDateString("en-GB") : "N/A"}
-                            </span>
-                          </div>
-                          <div>
-                            <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Guests</span>
-                            <span className="text-zinc-300 font-medium font-sans">{res.guests} Guests</span>
-                          </div>
-                          <div>
-                            <span className="block text-[9px] uppercase tracking-wider text-zinc-600 mb-0.5">Paid Total</span>
-                            <span className="text-zinc-300 font-mono font-medium">&pound;{res.finalAmount ? res.finalAmount.toFixed(2) : "0.00"}</span>
-                          </div>
+
+                          {/* Dietary and Special requests details display */}
+                          {res.type === "Dining" && (res.dietaryRequirements || res.specialRequests) && (
+                            <div className="text-[11px] font-sans font-light space-y-1 text-zinc-400">
+                              {res.dietaryRequirements && (
+                                <p><span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">Dietary:</span> {res.dietaryRequirements}</p>
+                              )}
+                              {res.specialRequests && (
+                                <p><span className="text-gold font-medium uppercase text-[8px] tracking-wider mr-1">Requests:</span> {res.specialRequests}</p>
+                              )}
+                            </div>
+                          )}
                         </div>
                       ) : (
                         /* Modification inline inputs form */
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-sans text-left border-y border-gold/5 py-4">
-                          <div className="space-y-1">
-                            <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Check-in</label>
-                            <input
-                              type="date"
-                              className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans"
-                              value={editCheckIn}
-                              onChange={(e) => setEditCheckIn(e.target.value)}
-                            />
+                        <div className="space-y-4 border-y border-gold/5 py-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-xs font-sans text-left">
+                            <div className="space-y-1">
+                              <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Date</label>
+                              <input
+                                type="date"
+                                className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans"
+                                value={editCheckIn}
+                                onChange={(e) => setEditCheckIn(e.target.value)}
+                              />
+                            </div>
+                            
+                            {res.type === "Lodging" ? (
+                              <div className="space-y-1">
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Check-out</label>
+                                <input
+                                  type="date"
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans"
+                                  value={editCheckOut}
+                                  onChange={(e) => setEditCheckOut(e.target.value)}
+                                />
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Seating Time</label>
+                                <select
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
+                                  value={editTime}
+                                  onChange={(e) => setEditTime(e.target.value)}
+                                >
+                                  <option value="17:30">17:30 PM</option>
+                                  <option value="18:00">18:00 PM</option>
+                                  <option value="18:30">18:30 PM</option>
+                                  <option value="19:00">19:00 PM</option>
+                                  <option value="19:30">19:30 PM</option>
+                                  <option value="20:00">20:00 PM</option>
+                                  <option value="20:30">20:30 PM</option>
+                                  <option value="21:00">21:00 PM</option>
+                                  <option value="21:30">21:30 PM</option>
+                                </select>
+                              </div>
+                            )}
+
+                            <div className="space-y-1">
+                              <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Guests</label>
+                              <select
+                                className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
+                                value={editGuests}
+                                onChange={(e) => setEditGuests(parseInt(e.target.value))}
+                              >
+                                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                                  <option key={num} value={num}>{num} Guests</option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
-                          <div className="space-y-1">
-                            <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Check-out</label>
-                            <input
-                              type="date"
-                              className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans"
-                              value={editCheckOut}
-                              onChange={(e) => setEditCheckOut(e.target.value)}
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">New Guests</label>
-                            <select
-                              className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm cursor-pointer font-sans"
-                              value={editGuests}
-                              onChange={(e) => setEditGuests(parseInt(e.target.value))}
-                            >
-                              {[1, 2, 3, 4, 5, 6].map((num) => (
-                                <option key={num} value={num}>{num} Guests</option>
-                              ))}
-                            </select>
-                          </div>
+
+                          {res.type === "Dining" && (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans text-left">
+                              <div className="space-y-1">
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Dietary Requirements</label>
+                                <textarea
+                                  rows={2}
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans resize-none"
+                                  value={editDietaryRequirements}
+                                  onChange={(e) => setEditDietaryRequirements(e.target.value)}
+                                  placeholder="E.g. allergies, vegan..."
+                                />
+                              </div>
+                              <div className="space-y-1">
+                                <label className="block text-[9px] uppercase tracking-wider text-gold font-sans font-medium">Special Requests</label>
+                                <textarea
+                                  rows={2}
+                                  className="w-full bg-black/60 border border-gold/15 p-2 text-xs text-zinc-200 outline-none rounded-sm font-sans resize-none"
+                                  value={editSpecialRequests}
+                                  onChange={(e) => setEditSpecialRequests(e.target.value)}
+                                  placeholder="E.g. window table..."
+                                />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -286,7 +420,7 @@ Thank you for choosing AURELIA.
                                   onClick={() => startEdit(res)}
                                   disabled={isPending}
                                 >
-                                  <Edit2 size={10} /> Modify Stays
+                                  <Edit2 size={10} /> Modify
                                 </Button>
                                 <Button
                                   variant="outline"
@@ -295,7 +429,7 @@ Thank you for choosing AURELIA.
                                   onClick={() => handleCancel(res.id)}
                                   disabled={isPending}
                                 >
-                                  <XCircle size={10} /> Cancel Booking
+                                  <XCircle size={10} /> Cancel
                                 </Button>
                               </>
                             )}
@@ -315,7 +449,7 @@ Thank you for choosing AURELIA.
                               variant="primary"
                               size="sm"
                               className="text-[9px] py-1.5 uppercase tracking-widest font-sans cursor-pointer"
-                              onClick={() => handleModify(res.id)}
+                              onClick={() => handleModify(res.id, res.type)}
                               disabled={isPending}
                             >
                               {isPending ? <RefreshCw size={10} className="animate-spin" /> : "Save Changes"}
