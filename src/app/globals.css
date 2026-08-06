@@ -116,3 +116,45 @@ body {
     box-shadow: var(--shadow-gold-glow);
   }
 }
+
+/* ============================================================
+   ADMIN PORTAL — Isolated theme tokens
+   These only apply inside [data-admin-theme] containers.
+   They do NOT affect guest-facing pages.
+   ============================================================ */
+
+/* Dark theme (default) */
+[data-admin-theme="dark"] {
+  --admin-bg:          #09090b;
+  --admin-surface:     #111113;
+  --admin-surface-2:   #18181b;
+  --admin-border:      #27272a;
+  --admin-text:        #f4f4f5;
+  --admin-text-muted:  #71717a;
+  --admin-accent:      #f59e0b;
+  --admin-accent-soft: rgba(245, 158, 11, 0.1);
+}
+
+/* Light theme */
+[data-admin-theme="light"] {
+  --admin-bg:          #f9fafb;
+  --admin-surface:     #ffffff;
+  --admin-surface-2:   #f3f4f6;
+  --admin-border:      #e4e4e7;
+  --admin-text:        #18181b;
+  --admin-text-muted:  #71717a;
+  --admin-accent:      #d97706;
+  --admin-accent-soft: rgba(217, 119, 6, 0.08);
+}
+
+/* Admin utility classes */
+.admin-root {
+  min-height: 100vh;
+  font-family: var(--font-sans);
+}
+
+.admin-card {
+  background-color: var(--admin-surface);
+  border-color: var(--admin-border);
+  color: var(--admin-text);
+}
