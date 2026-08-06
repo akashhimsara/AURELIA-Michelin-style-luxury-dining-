@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/admin/page-header";
-import { ModulePlaceholder } from "@/components/admin/module-placeholder";
-import { FileBarChart2 } from "lucide-react";
+import { getReportsData } from "@/features/admin/actions/reports";
+import { ReportsShell } from "./reports-shell";
 
-export const metadata: Metadata = { title: "Reports — AURELIA Admin" };
+export const metadata: Metadata = {
+  title: "Reports & Analytics — AURELIA Admin",
+  description: "Executive business intelligence, RevPAR, ADR, occupancy trends, guest demographics, and departmental analytics.",
+};
 
-export default function ReportsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ReportsPage() {
+  const data = await getReportsData("30d", "all");
+
   return (
-    <>
-      <PageHeader title="Reports" description="Analytical reports, occupancy trends, and operational insights." />
-      <ModulePlaceholder moduleName="Reports" icon={FileBarChart2} description="Revenue reports, occupancy charts, guest analytics, and exportable data tables will be available here." />
-    </>
+    <div className="space-y-6">
+      <PageHeader
+        title="Business Intelligence & Analytical Reports"
+        description="Monitor real-time RevPAR, ADR, suite occupancy trends, guest CRM analytics, restaurant covers, and exportable reports."
+      />
+      <ReportsShell data={data} />
+    </div>
   );
 }
