@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/admin/page-header";
-import { ModulePlaceholder } from "@/components/admin/module-placeholder";
-import { BedDouble } from "lucide-react";
+import { getRooms, getAllFacilities } from "@/features/admin/actions/rooms";
+import { RoomsShell } from "./rooms-shell";
 
-export const metadata: Metadata = { title: "Rooms — AURELIA Admin" };
+export const metadata: Metadata = {
+  title: "Room Inventory — AURELIA Admin",
+  description: "Room inventory, pricing tiers, amenities, availability grid, and housekeeping management.",
+};
 
-export default function RoomsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function RoomsPage() {
+  const [rooms, facilities] = await Promise.all([getRooms(), getAllFacilities()]);
+
   return (
-    <>
-      <PageHeader title="Rooms" description="Room inventory, availability grid, and housekeeping status." />
-      <ModulePlaceholder moduleName="Rooms" icon={BedDouble} description="Room categories, pricing tiers, availability calendar, and maintenance status will be managed here." />
-    </>
+    <div className="space-y-6">
+      <PageHeader
+        title="Room & Suite Inventory"
+        description="Manage accommodation catalog, dynamic pricing tiers, amenities, housekeeping status, and live occupancy."
+      />
+      <RoomsShell initialRooms={rooms} facilities={facilities} />
+    </div>
   );
 }
