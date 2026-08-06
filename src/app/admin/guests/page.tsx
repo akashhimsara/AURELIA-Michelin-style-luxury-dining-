@@ -1,15 +1,25 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/admin/page-header";
-import { ModulePlaceholder } from "@/components/admin/module-placeholder";
-import { Users } from "lucide-react";
+import { getGuests } from "@/features/admin/actions/guests";
+import { GuestsShell } from "./guests-shell";
 
-export const metadata: Metadata = { title: "Guests — AURELIA Admin" };
+export const metadata: Metadata = {
+  title: "Guest Management — AURELIA Admin",
+  description: "Guest CRM registry, profiles, VIP tiering, preferences, and stay analytics.",
+};
 
-export default function GuestsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function GuestsPage() {
+  const guests = await getGuests();
+
   return (
-    <>
-      <PageHeader title="Guests" description="Guest CRM registry, profiles, and stay history." />
-      <ModulePlaceholder moduleName="Guests" icon={Users} description="Guest profiles, loyalty tiers, contact details, and reservation history will be displayed here." />
-    </>
+    <div className="space-y-6">
+      <PageHeader
+        title="Guest CRM Registry"
+        description="Comprehensive guest profiles, VIP tiers, preferences, reservation history, and lifetime analytics."
+      />
+      <GuestsShell initialGuests={guests} />
+    </div>
   );
 }
