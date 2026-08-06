@@ -4,6 +4,8 @@ import React, { useEffect, useRef, useState } from "react";
 import { Bell, LogOut, Menu, Moon, Search, Settings, Sun, User } from "lucide-react";
 import { useAdmin } from "./admin-provider";
 import Link from "next/link";
+import { logoutAdmin } from "@/features/auth/admin-actions";
+import { useRouter } from "next/navigation";
 
 const MOCK_NOTIFICATIONS = [
   { id: 1, title: "New reservation confirmed", body: "Suite Imperiale — James Harrington", time: "2m ago", unread: true },
@@ -13,6 +15,7 @@ const MOCK_NOTIFICATIONS = [
 ];
 
 export function TopNav() {
+  const router = useRouter();
   const { theme, toggleTheme, sidebarCollapsed, setSidebarCollapsed } = useAdmin();
   const isDark = theme === "dark";
 
@@ -22,6 +25,15 @@ export function TopNav() {
 
   const notifRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
+
+  const handleLogout = async () => {
+    setShowProfile(false);
+    const result = await logoutAdmin();
+    if (result.success) {
+      router.push("/admin/login");
+      router.refresh();
+    }
+  };
 
   // Click outside to close
   useEffect(() => {
@@ -173,7 +185,7 @@ export function TopNav() {
               <div className={`my-1 border-t ${divider}`} />
               <button
                 className="flex w-full items-center gap-2.5 px-4 py-2 text-xs font-sans text-red-500 hover:bg-red-500/10 transition-colors cursor-pointer"
-                onClick={() => setShowProfile(false)}
+                onClick={handleLogout}
               >
                 <LogOut size={12} /> Sign Out
               </button>
