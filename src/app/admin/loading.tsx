@@ -1,52 +1,133 @@
 import React from "react";
 
-// This loading.tsx runs inside the admin layout so AdminProvider/theme is available.
-// We import the client skeleton which reads the theme context.
+function Sk({ className = "" }: { className?: string }) {
+  return (
+    <div className={`animate-pulse rounded-sm bg-current/5 ${className}`} />
+  );
+}
+
 export default function AdminLoading() {
   return (
-    <div className="space-y-6 animate-pulse">
-      {/* Page header skeleton */}
-      <div className="space-y-2">
-        <div className="h-2.5 w-32 rounded-sm bg-zinc-800/70" />
-        <div className="flex items-center justify-between">
-          <div className="space-y-2">
-            <div className="h-5 w-48 rounded-sm bg-zinc-800/70" />
-            <div className="h-3 w-72 rounded-sm bg-zinc-800/70" />
-          </div>
-          <div className="h-8 w-28 rounded-sm bg-zinc-800/70" />
-        </div>
+    <div className="p-6 space-y-6">
+      {/* Page header */}
+      <div className="space-y-1.5">
+        <Sk className="h-6 w-48" />
+        <Sk className="h-3.5 w-72" />
       </div>
 
-      {/* 4-col stat grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="rounded-sm border border-zinc-800 bg-zinc-900/50 p-5 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="h-2.5 w-24 rounded-sm bg-zinc-800/70" />
-              <div className="h-8 w-8 rounded-sm bg-zinc-800/70" />
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <div key={i} className="admin-card rounded-sm border p-5 space-y-3">
+            <div className="flex items-start justify-between">
+              <div className="space-y-2 flex-1">
+                <Sk className="h-2.5 w-24" />
+                <Sk className="h-7 w-20" />
+                <Sk className="h-2.5 w-16" />
+              </div>
+              <Sk className="h-10 w-10 rounded-sm" />
             </div>
-            <div className="h-7 w-32 rounded-sm bg-zinc-800/70" />
-            <div className="h-2.5 w-20 rounded-sm bg-zinc-800/70" />
           </div>
         ))}
       </div>
 
-      {/* Table skeleton */}
-      <div className="rounded-sm border border-zinc-800 overflow-hidden">
-        <div className="flex gap-6 px-5 py-3 border-b border-zinc-800 bg-zinc-900/50">
-          {[192, 320, 256, 192, 160].map((w, i) => (
-            <div key={i} className="h-2.5 rounded-sm bg-zinc-800/70" style={{ width: w }} />
+      {/* Charts row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 admin-card rounded-sm border p-5">
+          <Sk className="h-4 w-32 mb-4" />
+          <Sk className="h-[220px] w-full" />
+        </div>
+        <div className="admin-card rounded-sm border p-5">
+          <Sk className="h-4 w-28 mb-4" />
+          <Sk className="h-[220px] w-full" />
+        </div>
+      </div>
+
+      {/* Arrivals/departures */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {[0, 1].map((i) => (
+          <div key={i} className="admin-card rounded-sm border p-5 space-y-3">
+            <Sk className="h-4 w-36" />
+            {Array.from({ length: 4 }).map((_, j) => (
+              <div key={j} className="flex items-center gap-3 py-1">
+                <Sk className="w-8 h-8 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1">
+                  <Sk className="h-3 w-28" />
+                  <Sk className="h-2.5 w-20" />
+                </div>
+                <Sk className="h-3 w-14" />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Middle row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 admin-card rounded-sm border p-5">
+          <Sk className="h-4 w-40 mb-4" />
+          <div className="space-y-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="flex gap-3">
+                <Sk className="flex-1 h-3" />
+                <Sk className="h-3 w-16" />
+                <Sk className="h-3 w-12" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="admin-card rounded-sm border p-5 space-y-3">
+          <Sk className="h-4 w-28 mb-4" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-center gap-3 py-1">
+              <Sk className="w-8 h-8 rounded-full shrink-0" />
+              <div className="flex-1 space-y-1">
+                <Sk className="h-3 w-24" />
+                <Sk className="h-2.5 w-16" />
+              </div>
+              <Sk className="h-4 w-16" />
+            </div>
           ))}
         </div>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex gap-6 px-5 py-3.5 border-b border-zinc-800/60 last:border-b-0">
-            <div className="h-3 w-28 rounded-sm bg-zinc-800/70" />
-            <div className="h-3 w-40 rounded-sm bg-zinc-800/70" />
-            <div className="h-3 w-24 rounded-sm bg-zinc-800/70" />
-            <div className="h-3 w-20 rounded-sm bg-zinc-800/70" />
-            <div className="h-5 w-16 rounded-full bg-zinc-800/70" />
+      </div>
+
+      {/* Bottom row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="admin-card rounded-sm border p-5">
+          <Sk className="h-4 w-32 mb-4" />
+          <Sk className="h-[140px] w-full" />
+        </div>
+        <div className="admin-card rounded-sm border p-5 space-y-2">
+          <Sk className="h-4 w-28 mb-4" />
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Sk key={i} className="h-10 w-full" />
+          ))}
+        </div>
+        <div className="admin-card rounded-sm border p-5">
+          <Sk className="h-4 w-24 mb-4" />
+          <div className="grid grid-cols-2 gap-2">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <Sk key={i} className="h-11 w-full" />
+            ))}
           </div>
-        ))}
+        </div>
+      </div>
+
+      {/* Activity */}
+      <div className="admin-card rounded-sm border p-5">
+        <Sk className="h-4 w-32 mb-5" />
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="flex items-start gap-4">
+              <Sk className="w-[30px] h-[30px] rounded-full shrink-0" />
+              <div className="flex-1 space-y-1.5">
+                <Sk className="h-3 w-40" />
+                <Sk className="h-2.5 w-24" />
+              </div>
+              <Sk className="h-2.5 w-12" />
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
