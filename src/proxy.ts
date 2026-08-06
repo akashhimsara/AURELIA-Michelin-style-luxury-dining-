@@ -3,11 +3,38 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const JWT_SECRET = process.env.JWT_SECRET || "default-secret-aurelia-guest-key-123456789";
+const ADMIN_JWT_SECRET = process.env.ADMIN_JWT_SECRET || "default-secret-aurelia-admin-key-987654321";
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protected paths
+  // ── Admin route protection ─────────────────────────────────
+  const isAdminPath = pathname.startsWith("/admin");
+  const isAdminLoginPage = pathname === "/admin/login";
+
+  if (isAdminPath && !isAdminLoginPage) {
+    const adminSession = request.cookies.get("admin_session")?.value;
+
+    if (!adminSession) {
+      const loginUrl = new URL("/admin/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    try {
+      const secret = new TextEncoder().encode(ADMIN_JWT_SECRET);
+      await jwtVerify(adminSession, secret, { algorithms: ["HS256"] });
+      return NextResponse.next();
+    } catch {
+      const loginUrl = new URL("/admin/login", request.url);
+      loginUrl.searchParams.set("redirect", pathname);
+      const response = NextResponse.redirect(loginUrl);
+      response.cookies.delete("admin_session");
+      return response;
+    }
+  }
+
+  // ── Guest route protection ─────────────────────────────────
   const protectedPaths = ["/dashboard", "/profile"];
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));
 
@@ -22,11 +49,9 @@ export async function proxy(request: NextRequest) {
 
     try {
       const secret = new TextEncoder().encode(JWT_SECRET);
-      await jwtVerify(session, secret, {
-        algorithms: ["HS256"],
-      });
+      await jwtVerify(session, secret, { algorithms: ["HS256"] });
       return NextResponse.next();
-    } catch (error) {
+    } catch {
       const loginUrl = new URL("/login", request.url);
       loginUrl.searchParams.set("redirect", pathname);
       const response = NextResponse.redirect(loginUrl);
@@ -39,5 +64,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/profile/:path*"],
+  matcher: ["/dashboard/:path*", "/profile/:path*", "/admin/:path*"],
 };
