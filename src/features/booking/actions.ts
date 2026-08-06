@@ -22,6 +22,12 @@ export async function createStripeSessionForReservation(reservationId: string) {
       return { success: false, message: "Reservation requires no advance card billing." };
     }
 
+    // Bypass real Stripe API if mock key is configured
+    if (!process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.startsWith("sk_test_mock_")) {
+      console.log(`[AURELIA STRIPE MOCK] Redirecting reservation ${reservationId} to development payment page.`);
+      return { success: true, checkoutUrl: `/reserve/payment?reservationId=${reservationId}` };
+    }
+
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
       line_items: [
@@ -56,6 +62,36 @@ export async function createStripeSessionForReservation(reservationId: string) {
   } catch (error) {
     console.error("Stripe session creation error:", error);
     return { success: false, message: "Could not establish secure payment gateway session. Try again." };
+  }
+}
+
+export async function processMockPayment(reservationId: string) {
+  try {
+    const reservation = await db.reservation.findUnique({
+      where: { id: reservationId },
+    });
+
+    if (!reservation) {
+      return { success: false, message: "Reservation not found." };
+    }
+
+    // Mark reservation as pending approval since mock payment succeeded
+    await db.reservation.update({
+      where: { id: reservationId },
+      data: {
+        status: "pending",
+      },
+    });
+
+    revalidatePath("/dashboard");
+    revalidatePath("/dashboard/reservations");
+    revalidatePath("/admin");
+    revalidatePath("/admin/reservations");
+
+    return { success: true };
+  } catch (error) {
+    console.error("Process mock payment error:", error);
+    return { success: false, message: "Failed to process card billing verification." };
   }
 }
 
